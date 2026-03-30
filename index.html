@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PFPÜ – Pausenfestpunktübersicht</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="theme-color" content="#4CAF50">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="app-bar">
+        <div class="logo">
+            <svg class="map-icon" viewBox="0 0 24 24"><path d="M20,3H4A2,2 0 0,0 2,5V19A2,2 0 0,0 4,21H20A2,2 0 0,0 22,19V5A2,2 0 0,0 20,3M18.8,11L17.2,12.6L18.8,14.2C19.1,14.5 19.1,15 18.8,15.3L16.3,17.8C16,18.1 15.5,18.1 15.2,17.8L13.6,16.2V11H18.8M10.4,11H5.2V16.2L6.8,17.8C7.1,18.1 7.6,18.1 7.9,17.8L10.4,15.3C10.7,15 10.7,14.5 10.4,14.2L8.8,12.6L10.4,11M5.2,10.4V5.2H10.4L8.8,6.8L10.4,8.4C10.7,8.7 10.7,9.2 10.4,9.5L7.9,12C7.6,12.3 7.1,12.3 6.8,12L5.2,10.4M18.8,5.2H13.6V10.4L15.2,12L13.6,13.6V18.8L15.2,17.2L16.8,18.8C17.1,19.1 17.6,19.1 17.9,18.8L20.4,16.3C20.7,16 20.7,15.5 20.4,15.2L18.8,13.6L20.4,12L18.8,10.4L20.4,8.8C20.7,8.5 20.7,8 20.4,7.7L17.9,5.2C17.6,4.9 17.1,4.9 16.8,5.2L15.2,6.8L13.6,5.2H18.8Z" /></svg>
+            <span>PFPÜ</span>
+        </div>
+        <button id="admin-login-btn">
+            <svg class="admin-icon" viewBox="0 0 24 24"><path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,11.5A3.5,3.5 0 1,1 8.5,15A3.5,3.5 0 0,1 12,11.5M12,12.5A2.5,2.5 0 1,0 14.5,15A2.5,2.5 0 0,0 12,12.5M12,17.5A4.5,4.5 0 0,1 7.5,13A4.5,4.5 0 0,1 12,8.5A4.5,4.5 0 0,1 16.5,13A4.5,4.5 0 0,1 12,17.5M12,18.5A5.5,5.5 0 1,0 17.5,13A5.5,5.5 0 0,0 12,18.5Z" /></svg>
+            <span>Admin</span>
+        </button>
+    </header>
+
+    <main>
+        <section id="map-view" class="active-view">
+            <div id="map"></div>
+            <div class="filter-controls">
+                <button id="filter-dropdown-btn">
+                    <span>Filter</span>
+                    <span id="filter-active-count">8/8 aktiv</span>
+                    <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" /></svg>
+                </button>
+                <div id="filter-dropdown-content" class="hidden">
+                    <label><input type="checkbox" data-category="Metzgerei" checked> Metzgerei</label>
+                    <label><input type="checkbox" data-category="Wirtshaus" checked> Wirtshaus</label>
+                    <label><input type="checkbox" data-category="Supermarkt" checked> Supermarkt</label>
+                    <label><input type="checkbox" data-category="Bäckerei" checked> Bäckerei</label>
+                    <label><input type="checkbox" data-category="Pausenplatz" checked> Pausenplatz</label>
+                    <label><input type="checkbox" data-category="Zigarettenautomat" checked> Zigarettenautomat</label>
+                    <label><input type="checkbox" data-category="Kirchweih" checked> Kirchweih</label>
+                    <label><input type="checkbox" data-category="WC" checked> WC</label>
+                </div>
+            </div>
+            <button id="show-my-location-btn">
+                <svg viewBox="0 0 24 24"><path d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6Z" /></svg>
+            </button>
+        </section>
+
+        <section id="list-view">
+            <div class="search-filter-bar">
+                <input type="text" id="list-search-input" placeholder="Nach Ort oder Name suchen...">
+                <select id="list-category-filter">
+                    <option value="all">Alle Kategorien</option>
+                    <option value="Metzgerei">Metzgerei</option>
+                    <option value="Wirtshaus">Wirtshaus</option>
+                    <option value="Supermarkt">Supermarkt</option>
+                    <option value="Bäckerei">Bäckerei</option>
+                    <option value="Pausenplatz">Pausenplatz</option>
+                    <option value="Zigarettenautomat">Zigarettenautomat</option>
+                    <option value="Kirchweih">Kirchweih</option>
+                    <option value="WC">WC</option>
+                </select>
+            </div>
+            <div id="place-list-container">
+                </div>
+        </section>
+
+        <section id="calendar-view">
+            <div class="calendar-header">
+                <button id="prev-month">&lt;</button>
+                <div class="month-title-container">
+                <h2 id="current-month-display">Monat Jahr</h2>
+                <button id="go-to-today" class="today-btn">Heute</button>
+            </div>
+    <button id="next-month">&gt;</button>
+            </div>
+            <div id="calendar-container">
+                </div>
+            <div id="event-list-container">
+                </div>
+        </section>
+
+        <section id="new-place-view">
+            <h2>Neuen Ort einsenden</h2>
+            <form id="new-place-form">
+                <input type="text" id="new-place-name" placeholder="Name des Geschäfts / Ortes" required>
+
+                 <label for="new-place-category" style="display: block; margin-top: 10px; font-size: 0.9rem; color: #555;">Kategorie wählen:</label>
+                    <select id="new-place-category" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="" disabled selected>Bitte wählen...</option>
+                        <option value="Metzgerei">Metzgerei</option>
+                        <option value="Bäckerei">Bäckerei</option>
+                        <option value="Supermarkt">Supermarkt</option>
+                        <option value="Hofladen">Hofladen</option>
+                        <option value="Gastronomie">Gastronomie</option>
+                        <option value="Sonstiges">Sonstiges</option>
+                    </select>
+
+            <textarea id="new-place-info" placeholder="Zusatzinformationen, Termine, Öffnungszeiten..." style="height: 80px;"></textarea>
+
+            <input type="hidden" id="new-place-coords">
+
+            <p style="font-size: 0.9rem; color: #555; margin-bottom: 8px;">
+                <strong>Schritt 2:</strong> Nutze den GPS-Button zum Finden deiner Position und <u>klicke dann auf die Karte</u>, um den Punkt zu markieren.
+            </p>
+
+            <div class="new-map-wrapper">
+                <div id="new-place-map"></div>
+                <button type="button" id="new-place-location-btn" title="Meinen Standort nutzen">
+                    <svg viewBox="0 0 24 24"><path d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6Z" /></svg>
+                </button>
+            </div>
+
+            <button type="submit">Einsenden</button>
+        </form>
+    </section>
+    </main>
+
+    <footer class="nav-bar">
+        <button class="nav-item active" data-view="map-view">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12,22C17.5,22 22,17.5 22,12C22,6.5 17.5,2 12,2C6.5,2 2,6.5 2,12C2,17.5 6.5,22 12,22M12,4C16.4,4 20,7.6 20,12C20,16.4 16.4,20 12,20C7.6,20 4,16.4 4,12C4,7.6 7.6,4 12,4M13,8V10H11V8M13,11V16H11V11" /></svg>
+            <span>Karte</span>
+        </button>
+        <button class="nav-item" data-view="list-view">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19,19H5V5H19M19,3H5A2,2 0 0,0 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5A2,2 0 0,0 19,3M17,17H7V15H17M17,13H7V11H17M17,9H7V7H17" /></svg>
+            <span>Liste</span>
+        </button>
+        <button class="nav-item" data-view="calendar-view">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19,19H5V8H19M16,1V3H8V1H6V3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3H18V1M17,12H12V17H17V12" /></svg>
+            <span>Kalender</span>
+        </button>
+        <button class="nav-item" data-view="new-place-view">
+            <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" /></svg>
+            <span>Neu</span>
+        </button>
+    </footer>
+
+    <div id="admin-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Admin Panel (Demo)</h2>
+            <p>Hier sind die eingereichten Orte:</p>
+            <div id="submitted-places-list">
+                </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script src="app.js"></script>
+</body>
+</html>
