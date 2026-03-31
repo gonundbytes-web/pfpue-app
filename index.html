@@ -1,6 +1,33 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // DEINE KONFIGURATION HIER EINFÜGEN (aus Schritt 1.5)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCvkuqdZvvFI14r6DMznSDG16cTODdcZ1E",
+            authDomain: "pfpue-app.firebaseapp.com",
+            projectId: "pfpue-app",
+            storageBucket: "pfpue-app.firebasestorage.app",
+            messagingSenderId: "310825538473",
+            appId: "1:310825538473:web:a9cd37ea3b7902a8e26ab8"
+        };
+        
+
+        // Firebase initialisieren
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        // Exponiere Firebase-Funktionen für die app.js
+        window.db = db;
+        window.auth = auth;
+        window.firebaseFirestore = { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot };
+        window.firebaseAuth = { signInWithEmailAndPassword, onAuthStateChanged, signOut };
+
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PFPÜ – Pausenfestpunktübersicht</title>
@@ -13,6 +40,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
     <link rel="stylesheet" href="style.css">
+
 </head>
 <body>
 
@@ -153,6 +181,6 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

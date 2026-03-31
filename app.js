@@ -1,17 +1,5 @@
-/* === App-Daten === */
-// Dummy-Daten für die Demo (in einer echten App kämen diese von einem Backend-Server)
-let places = [
-    { id: 1, name: "Metzgerei Müller", category: "Metzgerei", coords: [49.4538, 11.0775], info: "Bester Leberkäse in der Stadt!", dates: [] },
-    { id: 2, name: "St. Lorenz Kirchweih", category: "Kirchweih", coords: [49.451, 11.078], info: "Großes Fest.", dates: ["2026-08-15"] },
-    { id: 3, name: "Supermarkt", category: "Supermarkt", coords: [49.452, 11.076], info: "Mo-Sa 8-22 Uhr", dates: [] },
-    { id: 4, name: "Zigarettenautomat", category: "Zigarettenautomat", coords: [49.4505, 11.075], info: "", dates: [] },
-    { id: 5, name: "Pausenplatz", category: "Pausenplatz", coords: [49.453, 11.079], info: "Mit Aussicht.", dates: [] },
-    { id: 6, name: "Wirtshaus Goldener Löwe", category: "Wirtshaus", coords: [49.4515, 11.0765], info: "Original Nürnberger Rostbratwurst.", dates: [] },
-    { id: 7, name: "Bäckerei Beck", category: "Bäckerei", coords: [49.4525, 11.077], info: "Täglich frische Brötchen.", dates: ["2026-06-12", "2026-07-20"] },
-    { id: 8, name: "Öffentliches WC", category: "WC", coords: [49.450, 11.0755], info: "", dates: [] }
-];
-
-// Liste der eingereichten Vorschläge (simuliert Admin-Eingang)
+/* === App-Daten (Jetzt aus Firebase) === */
+let places = [];
 let suggestedPlaces = [];
 
 // App-Status
@@ -39,26 +27,49 @@ const adminModal = document.getElementById('admin-modal');
 const closeBtn = document.querySelector('.close-btn');
 const newPlaceForm = document.getElementById('new-place-form');
 const newPlaceCoordsInput = document.getElementById('new-place-coords');
+const submittedPlacesList = document.getElementById('submitted-places-list');
 
-/* === Initialisierung === */
+/* === INITIALISIERUNG === */
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Karte initialisieren
     initMap();
-
     // 2. Navigation initialisieren
     initNavigation();
-
     // 3. PWA-Service-Worker registrieren
     registerServiceWorker();
-
-    // 4. Admin-Simulation
+    // 4. Admin-Simulation initialisieren
     initAdminSimulation();
+    
+    // 5. START: Firebase Daten laden
+    loadDataFromFirebase();
 });
 
+// Echte Daten aus Firebase Firestore laden
+function loadDataFromFirebase() {
+    // Sicherheitscheck: Wurde Firebase in der index.html richtig geladen?
+    if (!window.firebaseFirestore) {
+        console.error("Firebase Firestore wurde nicht gefunden. Bitte überprüfe die index.html.");
+        return;
+    }
 
-/* === 1. Karten-Logik (Leaflet) === */
+    const { onSnapshot, collection } = window.firebaseFirestore;
+    
+    // A. Haupt-Orte laden (Echtzeit-Update)
+    onSnapshot(collection(window.db, "places"), (snapshot) => {
+        places = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateMapMarkers();
+        if (appState.activeView === 'list-view') renderList();
+        if (appState.activeView === 'calendar-view') renderCalendar();
+    });
 
-// Kategorien-Symbole für die Demo
+    // B. Vorschläge für Admin laden
+    onSnapshot(collection(window.db, "suggestions"), (snapshot) => {
+        suggestedPlaces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (appState.isAdmin) renderAdminPlaceList();
+    });
+}
+
+/* === 1. KARTEN LOGIK === */
 const createIcon = (char) => {
     return L.divIcon({
         className: 'custom-div-icon',
@@ -70,14 +81,9 @@ const createIcon = (char) => {
 };
 
 const categoryIcons = {
-    Metzgerei: createIcon('M'),
-    Wirtshaus: createIcon('W'),
-    Supermarkt: createIcon('S'),
-    Bäckerei: createIcon('B'),
-    Pausenplatz: createIcon('P'),
-    Zigarettenautomat: createIcon('Z'),
-    Kirchweih: createIcon('K'),
-    WC: createIcon('WC')
+    Metzgerei: createIcon('M'), Wirtshaus: createIcon('W'), Supermarkt: createIcon('S'),
+    Bäckerei: createIcon('B'), Pausenplatz: createIcon('P'), Zigarettenautomat: createIcon('Z'),
+    Kirchweih: createIcon('K'), WC: createIcon('WC')
 };
 
 function initMap() {
@@ -90,9 +96,8 @@ function initMap() {
         maxZoom: 19
     }).addTo(map);
 
-    L.control.attribution({
-        position: 'bottomleft' 
-    }).addAttribution('&copy; <a href="https://basemap.de" target="_blank">GeoBasis-DE / BKG</a>').addTo(map);
+    L.control.attribution({ position: 'bottomleft' })
+     .addAttribution('&copy; <a href="https://basemap.de" target="_blank">GeoBasis-DE / BKG</a>').addTo(map);
 
     markerLayer.addTo(map);
     updateMapMarkers();
@@ -105,13 +110,14 @@ function updateMapMarkers() {
     places.forEach(place => {
         if (appState.activeFilters.includes(place.category)) {
             const icon = categoryIcons[place.category] || createIcon('?');
+            const dates = place.dates || []; // Fallback, falls Termine leer sind
             
             const popupContent = `
                 <div class="popup-content">
                     <h3>${place.name}</h3>
                     <p><strong>Kategorie:</strong> ${place.category}</p>
                     <p>${place.info}</p>
-                    ${place.dates.length > 0 ? `<p><strong>Nächste Termine:</strong> ${place.dates.join(', ')}</p>` : ''}
+                    ${dates.length > 0 ? `<p><strong>Nächste Termine:</strong> ${dates.join(', ')}</p>` : ''}
                 </div>
             `;
             
@@ -129,24 +135,18 @@ function initMapInteractions() {
     const filterActiveCountSpan = document.getElementById('filter-active-count');
     const myLocationBtn = document.getElementById('show-my-location-btn');
 
-    // Filter-Dropdown
     filterBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         filterContent.classList.toggle('hidden');
     });
     
-    map.on('click', () => {
-        filterContent.classList.add('hidden');
-    });
+    map.on('click', () => { filterContent.classList.add('hidden'); });
 
-    // Checkbox-Klicks
     filterCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', () => {
             const category = checkbox.dataset.category;
             if (checkbox.checked) {
-                if (!appState.activeFilters.includes(category)) {
-                    appState.activeFilters.push(category);
-                }
+                if (!appState.activeFilters.includes(category)) appState.activeFilters.push(category);
             } else {
                 appState.activeFilters = appState.activeFilters.filter(f => f !== category);
             }
@@ -155,7 +155,6 @@ function initMapInteractions() {
         });
     });
 
-    // Standort-Button
     myLocationBtn.addEventListener('click', showMyLocation);
 }
 
@@ -168,25 +167,15 @@ function showMyLocation() {
     navigator.geolocation.getCurrentPosition(position => {
         const { latitude, longitude, accuracy } = position.coords;
         appState.userLocation = [latitude, longitude];
-
         map.flyTo(appState.userLocation, 17, { duration: 1 });
 
         if (!userMarker) {
             userMarker = L.circleMarker(appState.userLocation, {
-                radius: 8,
-                fillColor: "#007bff",
-                color: "#fff",
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 1
+                radius: 8, fillColor: "#007bff", color: "#fff", weight: 2, opacity: 1, fillOpacity: 1
             }).addTo(map);
 
             userAccuracyCircle = L.circle(appState.userLocation, {
-                radius: accuracy,
-                color: "#007bff",
-                fillColor: "#007bff",
-                fillOpacity: 0.1,
-                weight: 1
+                radius: accuracy, color: "#007bff", fillColor: "#007bff", fillOpacity: 0.1, weight: 1
             }).addTo(map);
         } else {
             userMarker.setLatLng(appState.userLocation);
@@ -195,15 +184,10 @@ function showMyLocation() {
         }
     }, error => {
         alert("Konnte deinen Standort nicht ermitteln: " + error.message);
-    }, {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
-    });
+    }, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
 }
 
-
-/* === 2. Navigations-Logik === */
+/* === 2. NAVIGATIONS-LOGIK === */
 function initNavigation() {
     navItems.forEach(item => {
         item.addEventListener('click', () => {
@@ -232,8 +216,7 @@ function initNavigation() {
     });
 }
 
-
-/* === 3. Listenansicht-Logik === */
+/* === 3. LISTENANSICHT-LOGIK === */
 const placeListContainer = document.getElementById('place-list-container');
 const listSearchInput = document.getElementById('list-search-input');
 const listCategoryFilter = document.getElementById('list-category-filter');
@@ -274,7 +257,7 @@ listSearchInput.addEventListener('input', renderList);
 listCategoryFilter.addEventListener('change', renderList);
 
 
-/* === 4. Kalenderansicht-Logik === */
+/* === 4. KALENDERANSICHT-LOGIK === */
 const calendarContainer = document.getElementById('calendar-container');
 const eventListContainer = document.getElementById('event-list-container');
 const monthDisplay = document.getElementById('current-month-display');
@@ -295,9 +278,7 @@ function renderCalendar() {
     calendarContainer.innerHTML = `
         <table>
             <thead>
-                <tr>
-                    <th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th>
-                </tr>
+                <tr><th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th></tr>
             </thead>
             <tbody id="calendar-body"></tbody>
         </table>
@@ -308,10 +289,8 @@ function renderCalendar() {
     
     for (let i = 0; i < 6; i++) {
         let row = document.createElement('tr');
-        
         for (let j = 0; j < 7; j++) {
             let cell = document.createElement('td');
-            
             if (i === 0 && j < startingDay) {
                 cell.classList.add('empty');
             } else if (date > daysInMonth) {
@@ -320,7 +299,7 @@ function renderCalendar() {
                 cell.textContent = date;
                 const fullDateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${date.toString().padStart(2, '0')}`;
                 
-                const hasEvent = places.some(p => p.dates.includes(fullDateStr));
+                const hasEvent = places.some(p => (p.dates || []).includes(fullDateStr));
                 if (hasEvent) cell.classList.add('has-event');
 
                 if (date === appState.selectedCalendarDay.getDate() && 
@@ -356,7 +335,7 @@ document.getElementById('next-month').addEventListener('click', () => {
 
 function renderEventsForDay(dateStr) {
     eventListContainer.innerHTML = `<h3>Termine am ${appState.selectedCalendarDay.toLocaleDateString('de-DE')}</h3>`;
-    const events = places.filter(p => p.dates.includes(dateStr));
+    const events = places.filter(p => (p.dates || []).includes(dateStr));
     
     if (events.length === 0) {
         eventListContainer.innerHTML += '<p>Keine Termine gefunden.</p>';
@@ -382,7 +361,7 @@ document.getElementById('go-to-today').addEventListener('click', () => {
 });
 
 
-/* === 5. "Neu"-Ansicht Logik (Einsenden) === */
+/* === 5. "NEU"-ANSICHT (Vorschläge an Firebase senden) === */
 function initNewPlaceMap() {
     if (newPlaceMap) return; 
     
@@ -396,7 +375,6 @@ function initNewPlaceMap() {
         attribution: '&copy; GeoBasis-DE / BKG'
     }).addTo(newPlaceMap);
 
-    // Klick auf Karte setzt Pin
     newPlaceMap.on('click', (e) => {
         const { lat, lng } = e.latlng;
         newPlaceCoordsInput.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
@@ -408,7 +386,6 @@ function initNewPlaceMap() {
         }
     });
 
-    // GPS-Button Logik (Zentrieren)
     const newLocationBtn = document.getElementById('new-place-location-btn');
     if(newLocationBtn) {
         newLocationBtn.addEventListener('click', () => {
@@ -416,71 +393,79 @@ function initNewPlaceMap() {
                 alert("Geolokalisierung wird von deinem Browser nicht unterstützt.");
                 return;
             }
-
             navigator.geolocation.getCurrentPosition(position => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                
-                newPlaceMap.flyTo([lat, lng], 17, { duration: 1.5 });
-                
-            }, error => {
-                alert("Standort konnte nicht ermittelt werden.");
-            }, {
-                enableHighAccuracy: true
-            });
+                newPlaceMap.flyTo([position.coords.latitude, position.coords.longitude], 17, { duration: 1.5 });
+            }, () => alert("Standort konnte nicht ermittelt werden."), { enableHighAccuracy: true });
         });
     }
 }
 
-// Formular-Einreichung verarbeiten
 if (newPlaceForm) {
-    newPlaceForm.addEventListener('submit', function(e) {
+    newPlaceForm.addEventListener('submit', async function(e) {
         e.preventDefault(); 
-
-        const name = document.getElementById('new-place-name').value;
-        const category = document.getElementById('new-place-category').value;
-        const info = document.getElementById('new-place-info').value;
-        const coordsRaw = newPlaceCoordsInput.value;
-
-        if (!coordsRaw) {
-            alert("Bitte markiere zuerst den Ort auf der Karte, indem du darauf klickst!");
-            return;
+        
+        if (!window.firebaseFirestore) {
+            return alert("Verbindung zur Datenbank fehlt gerade.");
         }
 
-        const coordsArray = coordsRaw.split(',').map(c => parseFloat(c.trim()));
-        
+        const coordsRaw = newPlaceCoordsInput.value;
+        if (!coordsRaw) return alert("Bitte markiere zuerst den Ort auf der Karte!");
+
         const newSuggestion = {
-            name: name,
-            category: category,
-            info: info,
-            coords: coordsArray,
-            dates: [] 
+            name: document.getElementById('new-place-name').value,
+            category: document.getElementById('new-place-category').value,
+            info: document.getElementById('new-place-info').value,
+            coords: coordsRaw.split(',').map(c => parseFloat(c.trim())),
+            dates: [],
+            submittedAt: new Date()
         };
 
-        suggestedPlaces.push(newSuggestion);
-        
-        alert(`Vielen Dank! Der Ort "${name}" wurde zur Überprüfung eingesendet.`);
-
-        this.reset();
-        newPlaceCoordsInput.value = ''; // Verstecktes Feld leeren
-        
-        if (newPlaceMarker && newPlaceMap) {
-            newPlaceMap.removeLayer(newPlaceMarker);
-            newPlaceMarker = null;
+        try {
+            const { collection, addDoc } = window.firebaseFirestore;
+            await addDoc(collection(window.db, "suggestions"), newSuggestion);
+            alert("Vielen Dank! Der Ort wurde zur Überprüfung eingesendet.");
+            
+            this.reset();
+            newPlaceCoordsInput.value = '';
+            if (newPlaceMarker && newPlaceMap) {
+                newPlaceMap.removeLayer(newPlaceMarker);
+                newPlaceMarker = null;
+            }
+            document.querySelector('.nav-item[data-view="map-view"]').click();
+        } catch (error) {
+            alert("Fehler beim Senden: " + error.message);
         }
-
-        const mapNavBtn = document.querySelector('.nav-item[data-view="map-view"]');
-        if (mapNavBtn) mapNavBtn.click();
     });
 }
 
 
-/* === 6. Admin-Simulation === */
-const submittedPlacesList = document.getElementById('submitted-places-list');
-
+/* === 6. ADMIN-LOGIK & FIREBASE === */
 function initAdminSimulation() {
-    adminLoginBtn.addEventListener('click', () => {
-        openAdminModal();
+    adminLoginBtn.addEventListener('click', async () => {
+        if (appState.isAdmin) {
+            openAdminModal();
+            return;
+        }
+
+        if (!window.firebaseAuth) {
+            alert("Firebase Auth ist nicht geladen.");
+            return;
+        }
+
+        const email = prompt("Admin E-Mail:");
+        if (!email) return; // Abbruch
+        const password = prompt("Passwort:");
+        if (!password) return;
+
+        const { signInWithEmailAndPassword } = window.firebaseAuth;
+        try {
+            await signInWithEmailAndPassword(window.auth, email, password);
+            appState.isAdmin = true;
+            alert("Erfolgreich als Admin angemeldet!");
+            openAdminModal();
+        } catch (error) {
+            alert("Login fehlgeschlagen: " + error.message);
+        }
     });
     
     closeBtn.addEventListener('click', closeAdminModal);
@@ -492,13 +477,11 @@ function initAdminSimulation() {
 
 function openAdminModal() {
     adminModal.classList.remove('hidden');
-    appState.isAdmin = true;
     renderAdminPlaceList();
 }
 
 function closeAdminModal() {
     adminModal.classList.add('hidden');
-    appState.isAdmin = false;
 }
 
 function renderAdminPlaceList() {
@@ -509,7 +492,7 @@ function renderAdminPlaceList() {
         return;
     }
     
-    suggestedPlaces.forEach((suggestion, index) => {
+    suggestedPlaces.forEach((suggestion) => {
         const adminItem = document.createElement('div');
         adminItem.className = 'admin-place-item';
         adminItem.innerHTML = `
@@ -519,47 +502,56 @@ function renderAdminPlaceList() {
                 <p>${suggestion.info}</p>
             </div>
             <div class="admin-action-btns">
-                <button class="admin-approve-btn" data-index="${index}">Freischalten</button>
-                <button class="admin-reject-btn" data-index="${index}">Ablehnen</button>
+                <button class="admin-approve-btn" data-id="${suggestion.id}">Freischalten</button>
+                <button class="admin-reject-btn" data-id="${suggestion.id}">Ablehnen</button>
             </div>
         `;
         
         const approveBtn = adminItem.querySelector('.admin-approve-btn');
         const rejectBtn = adminItem.querySelector('.admin-reject-btn');
         
-        approveBtn.addEventListener('click', () => approveSuggestion(index));
-        rejectBtn.addEventListener('click', () => rejectSuggestion(index));
+        approveBtn.addEventListener('click', () => approveSuggestion(suggestion.id));
+        rejectBtn.addEventListener('click', () => rejectSuggestion(suggestion.id));
         
         submittedPlacesList.appendChild(adminItem);
     });
 }
 
-function approveSuggestion(index) {
-    const suggestion = suggestedPlaces[index];
-    
-    const newId = places.length > 0 ? Math.max(...places.map(p => p.id)) + 1 : 1;
-    const newPlace = { ...suggestion, id: newId, dates: [] }; 
-    places.push(newPlace);
-    
-    suggestedPlaces.splice(index, 1);
-    
-    renderAdminPlaceList();
-    alert(`Der Ort "${suggestion.name}" wurde freigeschaltet und ist nun für alle sichtbar.`);
-    
-    if (appState.activeView === 'map-view') {
-        updateMapMarkers();
+async function approveSuggestion(id) {
+    const suggestion = suggestedPlaces.find(s => s.id === id);
+    if (!suggestion) return;
+
+    const { collection, addDoc, deleteDoc, doc } = window.firebaseFirestore;
+
+    try {
+        await addDoc(collection(window.db, "places"), {
+            name: suggestion.name,
+            category: suggestion.category,
+            info: suggestion.info,
+            coords: suggestion.coords,
+            dates: []
+        });
+        
+        await deleteDoc(doc(window.db, "suggestions", id));
+        alert(`Ort "${suggestion.name}" freigeschaltet!`);
+    } catch (e) { 
+        alert("Fehler: " + e.message); 
     }
 }
 
-function rejectSuggestion(index) {
-    const suggestion = suggestedPlaces[index];
-    suggestedPlaces.splice(index, 1);
-    renderAdminPlaceList();
-    alert(`Der Vorschlag "${suggestion.name}" wurde abgelehnt.`);
+async function rejectSuggestion(id) {
+    if (!confirm("Diesen Vorschlag wirklich löschen?")) return;
+    
+    const { deleteDoc, doc } = window.firebaseFirestore;
+    try {
+        await deleteDoc(doc(window.db, "suggestions", id));
+        alert("Vorschlag abgelehnt und gelöscht.");
+    } catch (e) { 
+        alert("Fehler: " + e.message); 
+    }
 }
 
-
-/* === 7. PWA-Service-Worker registrieren === */
+/* === 7. PWA-SERVICE-WORKER === */
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
