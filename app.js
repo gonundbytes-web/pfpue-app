@@ -522,7 +522,12 @@ function initAdminSimulation() {
 
 function openAdminModal() {
     adminModal.classList.remove('hidden');
-    renderAdminPlaceList();
+    
+    // 1. Zeige die neuen Vorschläge
+    renderAdminPlaceList(); 
+    
+    // 2. Zeige die bereits existierenden Daten zum Verwalten (NEU!)
+    renderAdminManagementList(); 
 }
 
 function closeAdminModal() {
@@ -585,6 +590,42 @@ async function renderAdminPlaceList() {
         console.error("Fehler:", error);
         container.innerHTML = '<p style="color: red;">Fehler beim Laden.</p>';
     }
+}
+// Diese Funktion zeigt alle AKTIVEN Orte und Events im Admin-Bereich an
+function renderAdminManagementList() {
+    const container = document.getElementById('admin-live-management');
+    if (!container) return; // Falls das HTML-Element noch nicht existiert
+    
+    container.innerHTML = `
+        <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2;">
+            <p style="font-weight: bold; margin-bottom: 10px; color: #e65100;">Aktive Orte & Events löschen</p>
+            <div id="live-items-list"></div>
+        </div>
+    `;
+    
+    const list = document.getElementById('live-items-list');
+
+    // 1. Alle echten Orte (places) auflisten
+    places.forEach(place => {
+        const div = document.createElement('div');
+        div.style = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding: 8px 0;";
+        div.innerHTML = `
+            <span style="font-size: 0.9rem;">📍 <strong>${place.name}</strong></span>
+            <button onclick="deleteLivePlace('${place.id}')" style="background: #f44336; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Löschen</button>
+        `;
+        list.appendChild(div);
+    });
+
+    // 2. Alle echten Events (eventsData) auflisten
+    eventsData.forEach(event => {
+        const div = document.createElement('div');
+        div.style = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding: 8px 0; background: #fffde7; margin-top: 5px; border-radius: 4px;";
+        div.innerHTML = `
+            <span style="font-size: 0.85rem;">📅 ${event.title} (${event.date})</span>
+            <button onclick="deleteLiveEvent('${event.id}')" style="background: #ff9800; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Event entfernen</button>
+        `;
+        list.appendChild(div);
+    });
 }
 
 // NEU: Funktion um die Karte im Hintergrund zu bewegen
@@ -712,3 +753,25 @@ function registerServiceWorker() {
         });
     }
 }
+// Hilfsfunktion: Löscht einen Ort permanent aus der Datenbank
+window.deleteLivePlace = async function(id) {
+    if (!confirm("Diesen Ort wirklich von der Karte löschen? Das kann nicht rückgängig gemacht werden!")) return;
+    try {
+        await window.firebaseFirestore.deleteDoc(window.firebaseFirestore.doc(window.db, "places", id));
+        alert("Ort gelöscht.");
+        // Die Liste aktualisiert sich durch den onSnapshot automatisch!
+    } catch (error) {
+        alert("Fehler beim Löschen: " + error.message);
+    }
+};
+
+// Hilfsfunktion: Löscht ein Event permanent
+window.deleteLiveEvent = async function(id) {
+    if (!confirm("Diese Veranstaltung wirklich löschen?")) return;
+    try {
+        await window.firebaseFirestore.deleteDoc(window.firebaseFirestore.doc(window.db, "events", id));
+        alert("Event gelöscht.");
+    } catch (error) {
+        alert("Fehler: " + error.message);
+    }
+};
