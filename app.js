@@ -1,6 +1,7 @@
 /* === App-Daten (Jetzt aus Firebase) === */
 let places = [];
 let suggestedPlaces = [];
+let eventsData = []; // Hier landen alle Veranstaltungen aus der Datenbank
 
 // App-Status
 let appState = {
@@ -69,6 +70,14 @@ function loadDataFromFirebase() {
         suggestedPlaces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         if (appState.isAdmin) renderAdminPlaceList();
     });
+    // C. NEU: Veranstaltungen laden (Echtzeit-Update)
+    onSnapshot(collection(window.db, "events"), (snapshot) => {
+        eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Aktualisiert alles, sobald sich ein Event ändert
+        updateMapMarkers();
+        if (appState.activeView === 'calendar-view') renderCalendar();
+    });
 }
 
 /* === 1. KARTEN LOGIK === */
@@ -119,14 +128,28 @@ function updateMapMarkers() {
     places.forEach(place => {
         if (appState.activeFilters.includes(place.category)) {
             const icon = categoryIcons[place.category] || createIcon('?');
-            const dates = place.dates || []; // Fallback, falls Termine leer sind
-            
+            // 1. Alle Events finden, die zu diesem speziellen Ort gehören
+            const placeEvents = eventsData.filter(e => e.placeId === place.id);
+
+            // 2. Event-Texte generieren (falls vorhanden)
+            let eventHtml = "";
+            if (placeEvents.length > 0) {
+                eventHtml = `<div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px;">
+                                <strong style="font-size: 0.8rem; color: #d32f2f;">📅 Aktuelle Termine:</strong><br>`;
+                placeEvents.forEach(e => {
+                    const dateParts = e.date.split('-'); // Format YYYY-MM-DD
+                    const dateString = `${dateParts[2]}.${dateParts[1]}.`; // Wird zu DD.MM.
+                    eventHtml += `<small>• ${dateString}: <strong>${e.title}</strong></small><br>`;
+                });
+                eventHtml += `</div>`;
+            }
+
             const popupContent = `
                 <div class="popup-content">
-                    <h3>${place.name}</h3>
-                    <p><strong>Kategorie:</strong> ${place.category}</p>
-                    <p>${place.info}</p>
-                    ${dates.length > 0 ? `<p><strong>Nächste Termine:</strong> ${dates.join(', ')}</p>` : ''}
+                    <h3 style="margin: 0 0 5px 0;">${place.name}</h3>
+                    <p style="margin: 0; font-size: 0.9rem;"><strong>Kategorie:</strong> ${place.category}</p>
+                    <p style="margin: 5px 0; font-size: 0.85rem; color: #666;">${place.info}</p>
+                    ${eventHtml}
                 </div>
             `;
             
@@ -308,7 +331,7 @@ function renderCalendar() {
                 cell.textContent = date;
                 const fullDateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${date.toString().padStart(2, '0')}`;
                 
-                const hasEvent = places.some(p => (p.dates || []).includes(fullDateStr));
+                const hasEvent = eventsData.some(e => e.date === fullDateStr);
                 if (hasEvent) cell.classList.add('has-event');
 
                 if (date === appState.selectedCalendarDay.getDate() && 
@@ -344,16 +367,18 @@ document.getElementById('next-month').addEventListener('click', () => {
 
 function renderEventsForDay(dateStr) {
     eventListContainer.innerHTML = `<h3>Termine am ${appState.selectedCalendarDay.toLocaleDateString('de-DE')}</h3>`;
-    const events = places.filter(p => (p.dates || []).includes(dateStr));
     
-    if (events.length === 0) {
+    // Wir filtern jetzt in der neuen eventsData Liste
+    const eventsAtDay = eventsData.filter(e => e.date === dateStr);
+    
+    if (eventsAtDay.length === 0) {
         eventListContainer.innerHTML += '<p>Keine Termine gefunden.</p>';
     } else {
-        events.forEach(p => {
+        eventsAtDay.forEach(e => {
             eventListContainer.innerHTML += `
-                <div class="event-item">
-                    <strong>${p.name}</strong><br>
-                    <small>${p.category}</small>
+                <div class="event-item" style="background: #fff; padding: 10px; margin-bottom: 5px; border-left: 4px solid var(--primary-color); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <strong style="color: var(--primary-color);">${e.title}</strong><br>
+                    <small>Ort: ${e.placeName}</small>
                 </div>`;
         });
     }
