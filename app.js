@@ -89,10 +89,16 @@ const categoryIcons = {
 };
 
 function initMap() {
+    // Karte initialisieren OHNE automatische Zoom-Buttons
     map = L.map('map', {
-        zoomControl: true, 
-        attributionControl: true 
-    }).setView([49.301, 10.572], 13); 
+        zoomControl: false // Wir schalten die Standard-Buttons links oben aus
+        //attributionControl: true 
+    }).setView([49.301, 10.572], 13);
+
+    // Jetzt fügen wir die Zoom-Buttons manuell unten rechts hinzu
+    L.control.zoom({
+        position: 'topright'
+    }).addTo(map);
 
     L.tileLayer('https://sgx.geodatenzentrum.de/wmts_basemapde/tile/1.0.0/de_basemapde_web_raster_farbe/default/GLOBAL_WEBMERCATOR/{z}/{y}/{x}.png', {
         maxZoom: 19
@@ -422,7 +428,18 @@ if (newPlaceForm) {
             dates: [],
             submittedAt: new Date()
         };
-
+        // Innerhalb de's Submit-Listeners von new-place-form:
+        const suggestionData = {
+            name: document.getElementById('new-place-name').value,
+            category: document.getElementById('new-place-category').value,
+            info: document.getElementById('new-place-info').value,
+            coords: JSON.parse(document.getElementById('new-place-coords').value),
+            // NEU: Event-Daten
+            eventTitle: document.getElementById('event-title').value || null,
+            eventDate: document.getElementById('event-date').value || null,
+            submittedAt: new Date()
+        };
+        // ... dann per addDoc an "suggestions" senden
         try {
             const { collection, addDoc } = window.firebaseFirestore;
             await addDoc(collection(window.db, "suggestions"), newSuggestion);
@@ -529,6 +546,13 @@ async function renderAdminPlaceList() {
                     <button onclick="approvePlace('${id}')" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 2; font-weight: bold;">✔ Speichern & Freigeben</button>
                     <button onclick="deleteSuggestion('${id}')" style="background-color: #f44336; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1;">✖ Löschen</button>
                 </div>
+                // Im HTML-String innerhalb von renderAdminPlaceList hinzufügen:
+                <div style="background: #e3f2fd; padding: 8px; margin-top: 10px; border-radius: 4px;">
+                    <strong>Event-Vorschlag:</strong><br>
+                    <input type="text" id="edit-event-title-${id}" value="${data.eventTitle || ''}" placeholder="Kein Event" style="width: 70%;">
+                    <input type="date" id="edit-event-date-${id}" value="${data.eventDate || ''}">
+                </div>
+
             `;
             container.appendChild(item);
         });
@@ -587,44 +611,66 @@ window.showOnMap = function(lat, lng) {
 
 // AKTUALISIERT: Freigabe-Funktion mit Bearbeitungs-Check
 window.approvePlace = async function(id) {
-    // 1. Die bearbeiteten Werte aus den Inputs holen
+    // 1. Die bearbeiteten Werte aus den Eingabefeldern holen
     const updatedName = document.getElementById(`edit-name-${id}`).value;
     const updatedInfo = document.getElementById(`edit-info-${id}`).value;
+    
+    // NEU: Event-Daten auslesen
+    const updatedEventTitle = document.getElementById(`edit-event-title-${id}`).value;
+    const updatedEventDate = document.getElementById(`edit-event-date-${id}`).value;
 
-    if (!confirm("Änderungen speichern und Ort veröffentlichen?")) return;
+    if (!confirm("Änderungen speichern und Ort (sowie optionales Event) veröffentlichen?")) return;
 
     try {
         const suggestionRef = window.firebaseFirestore.doc(window.db, "suggestions", id);
+        
+        // Wir holen uns einmal das Original-Dokument, um Coords und Kategorie zu bewahren
         const allDocs = await window.firebaseFirestore.getDocs(window.firebaseFirestore.collection(window.db, "suggestions"));
         const originalDoc = allDocs.docs.find(d => d.id === id);
 
         if (originalDoc) {
             const data = originalDoc.data();
             
-            // Wir mischen die Originaldaten (Coords, Kategorie) mit den editierten Daten
-            const finalData = {
-                ...data,
+            // --- SCHRITT A: Den Ort in "places" speichern ---
+            const placeData = {
                 name: updatedName,
                 info: updatedInfo,
-                approvedAt: new Date() // Zeitstempel für die Freigabe
+                category: data.category,
+                coords: data.coords,
+                approvedAt: new Date()
             };
 
-            // In "places" speichern
-            await window.firebaseFirestore.addDoc(
+            const newPlaceDoc = await window.firebaseFirestore.addDoc(
                 window.firebaseFirestore.collection(window.db, "places"), 
-                finalData
+                placeData
             );
 
-            // Aus Vorschlägen löschen
+            // --- SCHRITT B: Das Event speichern (nur wenn Titel UND Datum da sind) ---
+            if (updatedEventTitle.trim() !== "" && updatedEventDate !== "") {
+                await window.firebaseFirestore.addDoc(
+                    window.firebaseFirestore.collection(window.db, "events"), 
+                    {
+                        title: updatedEventTitle,
+                        date: updatedEventDate,
+                        placeName: updatedName,
+                        placeId: newPlaceDoc.id, // Verknüpfung zum neuen Ort-Eintrag
+                        createdAt: new Date()
+                    }
+                );
+                console.log("Event erfolgreich angelegt.");
+            }
+
+            // --- SCHRITT C: Den alten Vorschlag löschen ---
             await window.firebaseFirestore.deleteDoc(suggestionRef);
 
-            alert("Eintrag wurde aktualisiert und veröffentlicht!");
-            renderAdminPlaceList();
+            alert("Erfolgreich! Der Ort (und ggf. das Event) sind nun live.");
+            renderAdminPlaceList(); // Admin-Liste aktualisieren
             
-            // Optional: Karte neu laden, damit der neue Punkt erscheint
+            // Falls du schon eine Funktion hast, die die Karte neu lädt:
             if (typeof loadPlacesFromFirebase === "function") loadPlacesFromFirebase();
         }
     } catch (error) {
+        console.error("Fehler bei der Freigabe:", error);
         alert("Fehler: " + error.message);
     }
 };
