@@ -487,18 +487,17 @@ function closeAdminModal() {
 // Hilfsfunktion: Lädt die Vorschläge aus Firebase und zeigt sie im Modal an
 async function renderAdminPlaceList() {
     const container = document.getElementById('submitted-places-list');
-    container.innerHTML = '<p style="padding: 10px;">Lade Vorschläge aus der Datenbank...</p>';
+    container.innerHTML = '<p style="padding: 10px;">Lade Vorschläge...</p>';
 
     try {
-        // Wir holen alle Dokumente aus der Collection "suggestions"
         const querySnapshot = await window.firebaseFirestore.getDocs(
             window.firebaseFirestore.collection(window.db, "suggestions")
         );
         
-        container.innerHTML = ''; // Lade-Text entfernen
+        container.innerHTML = '';
 
         if (querySnapshot.empty) {
-            container.innerHTML = '<p style="padding: 10px;">Keine neuen Vorschläge vorhanden. Alles erledigt! ✅</p>';
+            container.innerHTML = '<p style="padding: 10px;">Keine neuen Vorschläge. ✅</p>';
             return;
         }
 
@@ -508,28 +507,92 @@ async function renderAdminPlaceList() {
 
             const item = document.createElement('div');
             item.className = 'admin-list-item';
-            item.style = "border-bottom: 1px solid #ddd; padding: 15px 10px; display: flex; flex-direction: column; gap: 5px;";
+            item.style = "border-bottom: 2px solid #eee; padding: 15px 10px; background: #f9f9f9; margin-bottom: 10px; border-radius: 8px;";
             
             item.innerHTML = `
-                <div style="display:flex; justify-content:between; align-items:start;">
-                    <div style="flex-grow:1;">
-                        <strong style="font-size: 1.1rem; color: #2e7d32;">${data.name}</strong> 
-                        <span style="background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">${data.category}</span>
-                        <p style="margin: 5px 0; font-size: 0.9rem; color: #555;">${data.info || '<em>Keine Zusatzinfos</em>'}</p>
+                <div style="margin-bottom: 10px;">
+                    <label style="font-size: 0.7rem; color: #777;">Name:</label>
+                    <input type="text" id="edit-name-${id}" value="${data.name}" style="width: 100%; padding: 5px; margin-bottom: 5px;">
+                    
+                    <label style="font-size: 0.7rem; color: #777;">Infos / Zeiten:</label>
+                    <textarea id="edit-info-${id}" style="width: 100%; height: 60px; padding: 5px;">${data.info || ''}</textarea>
+                    
+                    <div style="font-size: 0.8rem; color: #666; margin-top: 5px;">
+                        Kategorie: <strong>${data.category}</strong> | 
+                        <a href="#" onclick="showOnMap(${data.coords[0]}, ${data.coords[1]}); return false;" style="color: #2196F3; font-weight: bold;">📍 Auf Karte zeigen</a>
                     </div>
                 </div>
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button onclick="approvePlace('${id}')" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; flex: 1;">✔ Freigeben</button>
-                    <button onclick="deleteSuggestion('${id}')" style="background-color: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; flex: 1;">✖ Löschen</button>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="approvePlace('${id}')" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 2; font-weight: bold;">✔ Speichern & Freigeben</button>
+                    <button onclick="deleteSuggestion('${id}')" style="background-color: #f44336; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1;">✖ Löschen</button>
                 </div>
             `;
             container.appendChild(item);
         });
     } catch (error) {
-        console.error("Fehler beim Laden der Admin-Liste:", error);
-        container.innerHTML = '<p style="color: red; padding: 10px;">Fehler: Du hast eventuell keine Berechtigung (Sicherheitsregeln!).</p>';
+        console.error("Fehler:", error);
+        container.innerHTML = '<p style="color: red;">Fehler beim Laden.</p>';
     }
 }
+
+// NEU: Funktion um die Karte im Hintergrund zu bewegen
+window.showOnMap = function(lat, lng) {
+    if (window.map) {
+        // Modal kurz minimieren oder schließen ist nicht nötig, 
+        // wir fliegen einfach zur Position
+        window.map.setView([lat, lng], 18); 
+        
+        // Optional: Ein temporärer Marker, um zu zeigen wo es ist
+        L.circle([lat, lng], {radius: 10, color: 'red'}).addTo(window.map);
+        
+        // Hinweis für den Admin
+        console.log("Karte zentriert auf:", lat, lng);
+    }
+};
+
+// AKTUALISIERT: Freigabe-Funktion mit Bearbeitungs-Check
+window.approvePlace = async function(id) {
+    // 1. Die bearbeiteten Werte aus den Inputs holen
+    const updatedName = document.getElementById(`edit-name-${id}`).value;
+    const updatedInfo = document.getElementById(`edit-info-${id}`).value;
+
+    if (!confirm("Änderungen speichern und Ort veröffentlichen?")) return;
+
+    try {
+        const suggestionRef = window.firebaseFirestore.doc(window.db, "suggestions", id);
+        const allDocs = await window.firebaseFirestore.getDocs(window.firebaseFirestore.collection(window.db, "suggestions"));
+        const originalDoc = allDocs.docs.find(d => d.id === id);
+
+        if (originalDoc) {
+            const data = originalDoc.data();
+            
+            // Wir mischen die Originaldaten (Coords, Kategorie) mit den editierten Daten
+            const finalData = {
+                ...data,
+                name: updatedName,
+                info: updatedInfo,
+                approvedAt: new Date() // Zeitstempel für die Freigabe
+            };
+
+            // In "places" speichern
+            await window.firebaseFirestore.addDoc(
+                window.firebaseFirestore.collection(window.db, "places"), 
+                finalData
+            );
+
+            // Aus Vorschlägen löschen
+            await window.firebaseFirestore.deleteDoc(suggestionRef);
+
+            alert("Eintrag wurde aktualisiert und veröffentlicht!");
+            renderAdminPlaceList();
+            
+            // Optional: Karte neu laden, damit der neue Punkt erscheint
+            if (typeof loadPlacesFromFirebase === "function") loadPlacesFromFirebase();
+        }
+    } catch (error) {
+        alert("Fehler: " + error.message);
+    }
+};
 
 // Funktion: Einen Ort freigeben (Verschieben von suggestions -> places)
 window.approvePlace = async function(id) {
