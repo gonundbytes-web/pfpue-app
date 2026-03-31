@@ -12,7 +12,9 @@ let appState = {
 };
 
 /* === Globale Karten-Variablen === */
-let map, newPlaceMap; 
+// Ganz oben in der app.js
+let map; // Sicherstellen, dass diese Variable nicht innerhalb einer Funktion mit 'const' neu definiert wird
+let newPlaceMap; 
 let newPlaceMarker = null; 
 let markerLayer = L.layerGroup();
 let userMarker;
@@ -102,6 +104,7 @@ function initMap() {
     markerLayer.addTo(map);
     updateMapMarkers();
     initMapInteractions();
+    window.map = map;
 }
 
 function updateMapMarkers() {
@@ -537,17 +540,49 @@ async function renderAdminPlaceList() {
 
 // NEU: Funktion um die Karte im Hintergrund zu bewegen
 window.showOnMap = function(lat, lng) {
-    if (window.map) {
-        // Modal kurz minimieren oder schließen ist nicht nötig, 
-        // wir fliegen einfach zur Position
-        window.map.setView([lat, lng], 18); 
-        
-        // Optional: Ein temporärer Marker, um zu zeigen wo es ist
-        L.circle([lat, lng], {radius: 10, color: 'red'}).addTo(window.map);
-        
-        // Hinweis für den Admin
-        console.log("Karte zentriert auf:", lat, lng);
+    // 1. Prüfen, ob die Karte existiert
+    const currentMap = window.map || map; 
+
+    if (!currentMap) {
+        console.error("Karte wurde noch nicht initialisiert!");
+        alert("Fehler: Die Karte ist noch nicht bereit.");
+        return;
     }
+
+    // 2. Sicherstellen, dass lat/lng Zahlen sind (Firebase speichert sie manchmal als Strings)
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+
+    if (isNaN(latitude) || isNaN(longitude)) {
+        console.error("Ungültige Koordinaten:", lat, lng);
+        return;
+    }
+
+    // 3. Zum Punkt springen
+    currentMap.setView([latitude, longitude], 18);
+
+    // 4. Einen temporären auffälligen Kreis zeichnen, der nach 3 Sekunden wieder verschwindet
+    const highlight = L.circle([latitude, longitude], {
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.5,
+        radius: 20
+    }).addTo(currentMap);
+
+    setTimeout(() => {
+        currentMap.removeLayer(highlight);
+    }, 3000);
+
+    // 5. Optional: Modal verkleinern oder nach hinten schieben, 
+    // damit man die Karte sehen kann (falls das Modal alles verdeckt)
+    // document.getElementById('admin-modal').style.opacity = "0.5";
+    // setTimeout(() => { document.getElementById('admin-modal').style.opacity = "1"; }, 2000);
+    // Ergänzung für showOnMap:
+    const adminModal = document.getElementById('admin-modal'); // ID eventuell anpassen
+    adminModal.classList.add('hidden');
+    setTimeout(() => {
+        adminModal.classList.remove('hidden');
+    }, 2500); // Zeigt die Karte für 2,5 Sekunden
 };
 
 // AKTUALISIERT: Freigabe-Funktion mit Bearbeitungs-Check
