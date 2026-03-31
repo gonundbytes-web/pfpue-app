@@ -417,42 +417,42 @@ if (newPlaceForm) {
             return alert("Verbindung zur Datenbank fehlt gerade.");
         }
 
-        const coordsRaw = newPlaceCoordsInput.value;
+        const coordsRaw = newPlaceCoordsInput.value; // Format: "lat, lng"
         if (!coordsRaw) return alert("Bitte markiere zuerst den Ort auf der Karte!");
 
-        const newSuggestion = {
-            name: document.getElementById('new-place-name').value,
-            category: document.getElementById('new-place-category').value,
-            info: document.getElementById('new-place-info').value,
-            coords: coordsRaw.split(',').map(c => parseFloat(c.trim())),
-            dates: [],
-            submittedAt: new Date()
-        };
-        // Innerhalb de's Submit-Listeners von new-place-form:
-        const suggestionData = {
-            name: document.getElementById('new-place-name').value,
-            category: document.getElementById('new-place-category').value,
-            info: document.getElementById('new-place-info').value,
-            coords: JSON.parse(document.getElementById('new-place-coords').value),
-            // NEU: Event-Daten
-            eventTitle: document.getElementById('event-title').value || null,
-            eventDate: document.getElementById('event-date').value || null,
-            submittedAt: new Date()
-        };
-        // ... dann per addDoc an "suggestions" senden
         try {
+            // Koordinaten sicher umwandeln
+            const coordsArray = coordsRaw.split(',').map(c => parseFloat(c.trim()));
+
+            // Alle Daten in EINEM Objekt sammeln
+            const suggestionData = {
+                name: document.getElementById('new-place-name').value,
+                category: document.getElementById('new-place-category').value,
+                info: document.getElementById('new-place-info').value,
+                coords: coordsArray,
+                // Event-Daten (falls vorhanden)
+                eventTitle: document.getElementById('event-title')?.value || null,
+                eventDate: document.getElementById('event-date')?.value || null,
+                submittedAt: new Date()
+            };
+
             const { collection, addDoc } = window.firebaseFirestore;
-            await addDoc(collection(window.db, "suggestions"), newSuggestion);
+            await addDoc(collection(window.db, "suggestions"), suggestionData);
+            
             alert("Vielen Dank! Der Ort wurde zur Überprüfung eingesendet.");
             
+            // Formular zurücksetzen
             this.reset();
             newPlaceCoordsInput.value = '';
             if (newPlaceMarker && newPlaceMap) {
                 newPlaceMap.removeLayer(newPlaceMarker);
                 newPlaceMarker = null;
             }
+            // Zurück zur Karte springen
             document.querySelector('.nav-item[data-view="map-view"]').click();
+
         } catch (error) {
+            console.error("Fehler beim Senden:", error);
             alert("Fehler beim Senden: " + error.message);
         }
     });
@@ -609,149 +609,69 @@ window.showOnMap = function(lat, lng) {
     }, 2500); // Zeigt die Karte für 2,5 Sekunden
 };
 
-// AKTUALISIERT: Freigabe-Funktion mit Bearbeitungs-Check
+/* === 6. ADMIN-LOGIK (Die finale Version) === */
+
+// Funktion: Vorschlag bearbeiten, freigeben und optionales Event speichern
 window.approvePlace = async function(id) {
-    // 1. Die bearbeiteten Werte aus den Eingabefeldern holen
     const updatedName = document.getElementById(`edit-name-${id}`).value;
     const updatedInfo = document.getElementById(`edit-info-${id}`).value;
-    
-    // NEU: Event-Daten auslesen
-    const updatedEventTitle = document.getElementById(`edit-event-title-${id}`).value;
-    const updatedEventDate = document.getElementById(`edit-event-date-${id}`).value;
+    const updatedEventTitle = document.getElementById(`edit-event-title-${id}`)?.value || "";
+    const updatedEventDate = document.getElementById(`edit-event-date-${id}`)?.value || "";
 
-    if (!confirm("Änderungen speichern und Ort (sowie optionales Event) veröffentlichen?")) return;
+    if (!confirm("Änderungen speichern und Ort veröffentlichen?")) return;
 
     try {
-        const suggestionRef = window.firebaseFirestore.doc(window.db, "suggestions", id);
+        const { doc, collection, addDoc, deleteDoc, getDocs } = window.firebaseFirestore;
+        const suggestionRef = doc(window.db, "suggestions", id);
         
-        // Wir holen uns einmal das Original-Dokument, um Coords und Kategorie zu bewahren
-        const allDocs = await window.firebaseFirestore.getDocs(window.firebaseFirestore.collection(window.db, "suggestions"));
+        // Originaldaten holen (wegen Coords/Kategorie)
+        const allDocs = await getDocs(collection(window.db, "suggestions"));
         const originalDoc = allDocs.docs.find(d => d.id === id);
 
         if (originalDoc) {
             const data = originalDoc.data();
             
-            // --- SCHRITT A: Den Ort in "places" speichern ---
-            const placeData = {
+            // 1. Ort in "places" speichern
+            const newPlaceDoc = await addDoc(collection(window.db, "places"), {
                 name: updatedName,
                 info: updatedInfo,
                 category: data.category,
                 coords: data.coords,
                 approvedAt: new Date()
-            };
+            });
 
-            const newPlaceDoc = await window.firebaseFirestore.addDoc(
-                window.firebaseFirestore.collection(window.db, "places"), 
-                placeData
-            );
-
-            // --- SCHRITT B: Das Event speichern (nur wenn Titel UND Datum da sind) ---
+            // 2. Event in "events" speichern (falls ausgefüllt)
             if (updatedEventTitle.trim() !== "" && updatedEventDate !== "") {
-                await window.firebaseFirestore.addDoc(
-                    window.firebaseFirestore.collection(window.db, "events"), 
-                    {
-                        title: updatedEventTitle,
-                        date: updatedEventDate,
-                        placeName: updatedName,
-                        placeId: newPlaceDoc.id, // Verknüpfung zum neuen Ort-Eintrag
-                        createdAt: new Date()
-                    }
-                );
-                console.log("Event erfolgreich angelegt.");
+                await addDoc(collection(window.db, "events"), {
+                    title: updatedEventTitle,
+                    date: updatedEventDate,
+                    placeName: updatedName,
+                    placeId: newPlaceDoc.id,
+                    createdAt: new Date()
+                });
             }
 
-            // --- SCHRITT C: Den alten Vorschlag löschen ---
-            await window.firebaseFirestore.deleteDoc(suggestionRef);
-
-            alert("Erfolgreich! Der Ort (und ggf. das Event) sind nun live.");
-            renderAdminPlaceList(); // Admin-Liste aktualisieren
-            
-            // Falls du schon eine Funktion hast, die die Karte neu lädt:
-            if (typeof loadPlacesFromFirebase === "function") loadPlacesFromFirebase();
-        }
-    } catch (error) {
-        console.error("Fehler bei der Freigabe:", error);
-        alert("Fehler: " + error.message);
-    }
-};
-
-// Funktion: Einen Ort freigeben (Verschieben von suggestions -> places)
-window.approvePlace = async function(id) {
-    if (!confirm("Möchtest du diesen Ort wirklich auf der Karte veröffentlichen?")) return;
-
-    try {
-        // 1. Das Original-Dokument finden
-        const suggestionRef = window.firebaseFirestore.doc(window.db, "suggestions", id);
-        const allSuggestions = await window.firebaseFirestore.getDocs(window.firebaseFirestore.collection(window.db, "suggestions"));
-        const targetDoc = allSuggestions.docs.find(d => d.id === id);
-
-        if (targetDoc) {
-            const data = targetDoc.data();
-            
-            // 2. In die Haupt-Collection "places" schreiben
-            await window.firebaseFirestore.addDoc(
-                window.firebaseFirestore.collection(window.db, "places"), 
-                data
-            );
-
-            // 3. Aus den Vorschlägen löschen
-            await window.firebaseFirestore.deleteDoc(suggestionRef);
+            // 3. Vorschlag löschen
+            await deleteDoc(suggestionRef);
 
             alert("Erfolgreich freigegeben!");
-            renderAdminPlaceList(); // Liste aktualisieren
+            renderAdminPlaceList();
         }
     } catch (error) {
-        console.error("Fehler beim Freigeben:", error);
+        console.error("Fehler bei Freigabe:", error);
         alert("Fehler: " + error.message);
     }
 };
 
-// Funktion: Einen Vorschlag einfach löschen (Ablehnen)
 window.deleteSuggestion = async function(id) {
-    if (!confirm("Vorschlag wirklich unwiderruflich löschen?")) return;
-
+    if (!confirm("Vorschlag wirklich löschen?")) return;
     try {
-        const suggestionRef = window.firebaseFirestore.doc(window.db, "suggestions", id);
-        await window.firebaseFirestore.deleteDoc(suggestionRef);
+        await window.firebaseFirestore.deleteDoc(window.firebaseFirestore.doc(window.db, "suggestions", id));
         renderAdminPlaceList();
     } catch (error) {
-        console.error("Fehler beim Löschen:", error);
+        alert("Fehler beim Löschen: " + error.message);
     }
 };
-
-async function approveSuggestion(id) {
-    const suggestion = suggestedPlaces.find(s => s.id === id);
-    if (!suggestion) return;
-
-    const { collection, addDoc, deleteDoc, doc } = window.firebaseFirestore;
-
-    try {
-        await addDoc(collection(window.db, "places"), {
-            name: suggestion.name,
-            category: suggestion.category,
-            info: suggestion.info,
-            coords: suggestion.coords,
-            dates: []
-        });
-        
-        await deleteDoc(doc(window.db, "suggestions", id));
-        alert(`Ort "${suggestion.name}" freigeschaltet!`);
-    } catch (e) { 
-        alert("Fehler: " + e.message); 
-    }
-}
-
-async function rejectSuggestion(id) {
-    if (!confirm("Diesen Vorschlag wirklich löschen?")) return;
-    
-    const { deleteDoc, doc } = window.firebaseFirestore;
-    try {
-        await deleteDoc(doc(window.db, "suggestions", id));
-        alert("Vorschlag abgelehnt und gelöscht.");
-    } catch (e) { 
-        alert("Fehler: " + e.message); 
-    }
-}
 
 /* === 7. PWA-SERVICE-WORKER === */
 function registerServiceWorker() {
