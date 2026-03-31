@@ -484,38 +484,96 @@ function closeAdminModal() {
     adminModal.classList.add('hidden');
 }
 
-function renderAdminPlaceList() {
-    submittedPlacesList.innerHTML = '';
-    
-    if (suggestedPlaces.length === 0) {
-        submittedPlacesList.innerHTML = '<p>Keine neuen Einsendungen.</p>';
-        return;
+// Hilfsfunktion: Lädt die Vorschläge aus Firebase und zeigt sie im Modal an
+async function renderAdminPlaceList() {
+    const container = document.getElementById('submitted-places-list');
+    container.innerHTML = '<p style="padding: 10px;">Lade Vorschläge aus der Datenbank...</p>';
+
+    try {
+        // Wir holen alle Dokumente aus der Collection "suggestions"
+        const querySnapshot = await window.firebaseFirestore.getDocs(
+            window.firebaseFirestore.collection(window.db, "suggestions")
+        );
+        
+        container.innerHTML = ''; // Lade-Text entfernen
+
+        if (querySnapshot.empty) {
+            container.innerHTML = '<p style="padding: 10px;">Keine neuen Vorschläge vorhanden. Alles erledigt! ✅</p>';
+            return;
+        }
+
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+
+            const item = document.createElement('div');
+            item.className = 'admin-list-item';
+            item.style = "border-bottom: 1px solid #ddd; padding: 15px 10px; display: flex; flex-direction: column; gap: 5px;";
+            
+            item.innerHTML = `
+                <div style="display:flex; justify-content:between; align-items:start;">
+                    <div style="flex-grow:1;">
+                        <strong style="font-size: 1.1rem; color: #2e7d32;">${data.name}</strong> 
+                        <span style="background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">${data.category}</span>
+                        <p style="margin: 5px 0; font-size: 0.9rem; color: #555;">${data.info || '<em>Keine Zusatzinfos</em>'}</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button onclick="approvePlace('${id}')" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; flex: 1;">✔ Freigeben</button>
+                    <button onclick="deleteSuggestion('${id}')" style="background-color: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; flex: 1;">✖ Löschen</button>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    } catch (error) {
+        console.error("Fehler beim Laden der Admin-Liste:", error);
+        container.innerHTML = '<p style="color: red; padding: 10px;">Fehler: Du hast eventuell keine Berechtigung (Sicherheitsregeln!).</p>';
     }
-    
-    suggestedPlaces.forEach((suggestion) => {
-        const adminItem = document.createElement('div');
-        adminItem.className = 'admin-place-item';
-        adminItem.innerHTML = `
-            <div class="suggestion-info">
-                <h3>${suggestion.name}</h3>
-                <p><strong>Kategorie:</strong> ${suggestion.category}</p>
-                <p>${suggestion.info}</p>
-            </div>
-            <div class="admin-action-btns">
-                <button class="admin-approve-btn" data-id="${suggestion.id}">Freischalten</button>
-                <button class="admin-reject-btn" data-id="${suggestion.id}">Ablehnen</button>
-            </div>
-        `;
-        
-        const approveBtn = adminItem.querySelector('.admin-approve-btn');
-        const rejectBtn = adminItem.querySelector('.admin-reject-btn');
-        
-        approveBtn.addEventListener('click', () => approveSuggestion(suggestion.id));
-        rejectBtn.addEventListener('click', () => rejectSuggestion(suggestion.id));
-        
-        submittedPlacesList.appendChild(adminItem);
-    });
 }
+
+// Funktion: Einen Ort freigeben (Verschieben von suggestions -> places)
+window.approvePlace = async function(id) {
+    if (!confirm("Möchtest du diesen Ort wirklich auf der Karte veröffentlichen?")) return;
+
+    try {
+        // 1. Das Original-Dokument finden
+        const suggestionRef = window.firebaseFirestore.doc(window.db, "suggestions", id);
+        const allSuggestions = await window.firebaseFirestore.getDocs(window.firebaseFirestore.collection(window.db, "suggestions"));
+        const targetDoc = allSuggestions.docs.find(d => d.id === id);
+
+        if (targetDoc) {
+            const data = targetDoc.data();
+            
+            // 2. In die Haupt-Collection "places" schreiben
+            await window.firebaseFirestore.addDoc(
+                window.firebaseFirestore.collection(window.db, "places"), 
+                data
+            );
+
+            // 3. Aus den Vorschlägen löschen
+            await window.firebaseFirestore.deleteDoc(suggestionRef);
+
+            alert("Erfolgreich freigegeben!");
+            renderAdminPlaceList(); // Liste aktualisieren
+        }
+    } catch (error) {
+        console.error("Fehler beim Freigeben:", error);
+        alert("Fehler: " + error.message);
+    }
+};
+
+// Funktion: Einen Vorschlag einfach löschen (Ablehnen)
+window.deleteSuggestion = async function(id) {
+    if (!confirm("Vorschlag wirklich unwiderruflich löschen?")) return;
+
+    try {
+        const suggestionRef = window.firebaseFirestore.doc(window.db, "suggestions", id);
+        await window.firebaseFirestore.deleteDoc(suggestionRef);
+        renderAdminPlaceList();
+    } catch (error) {
+        console.error("Fehler beim Löschen:", error);
+    }
+};
 
 async function approveSuggestion(id) {
     const suggestion = suggestedPlaces.find(s => s.id === id);
