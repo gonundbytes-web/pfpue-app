@@ -112,23 +112,42 @@ const categoryIcons = {
 };
 
 function initMap() {
-    // Karte initialisieren OHNE automatische Zoom-Buttons
+    // 1. Die verschiedenen Karten-Hintergründe (TileLayers) definieren
+
+    // A: Deine bisherige Straßenkarte (Füge hier deine aktuelle basemap.de URL ein!)
+    const standardMap = L.tileLayer('https://sgx.geodatenzentrum.de/wmts_basemapde/tile/1.0.0/de_basemapde_web_raster_farbe/default/GLOBAL_WEBMERCATOR/{z}/{y}/{x}.png', {
+        maxZoom: 19
+    });
+
+    // B: Das neue Luftbild (Satellit von Esri)
+    const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19
+    });
+
+    // 2. Karte initialisieren
+    // WICHTIG: Wir übergeben hier 'layers: [standardMap]', damit die Karte weiß, womit sie starten soll.
     map = L.map('map', {
-        zoomControl: false, // Wir schalten die Standard-Buttons links oben aus
-        attributionControl: false
+        zoomControl: false,        // Standard-Zoom aus
+        attributionControl: false, // Standard-Leaflet-Text aus
+        layers: [standardMap]      // Startet mit der Straßenkarte
     }).setView([49.301, 10.572], 13);
 
-    // Jetzt fügen wir die Zoom-Buttons manuell unten rechts hinzu
+    // 3. Deine Quellenangabe (erweitert um Esri für das Luftbild)
+    L.control.attribution({ 
+        position: 'bottomleft' 
+    }).addAttribution('&copy; <a href="https://basemap.de" target="_blank">GeoBasis-DE / BKG</a> | Luftbild: &copy; Esri')
+      .addTo(map);
+
+    // 4. Den Umschalt-Button (Layer Control) erstellen
+    const baseMaps = {
+        "Straßenkarte": standardMap,
+        "Luftbild": satelliteMap
+    };
+// Fügt das Auswahlmenü oben rechts (topright) zur Karte hinzu
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
     L.control.zoom({
         position: 'topright'
     }).addTo(map);
-
-    L.tileLayer('https://sgx.geodatenzentrum.de/wmts_basemapde/tile/1.0.0/de_basemapde_web_raster_farbe/default/GLOBAL_WEBMERCATOR/{z}/{y}/{x}.png', {
-        maxZoom: 19
-    }).addTo(map);
-
-    L.control.attribution({ position: 'bottomleft' })
-     .addAttribution('&copy; <a href="https://basemap.de" target="_blank">GeoBasis-DE / BKG</a>').addTo(map);
 
     markerLayer.addTo(map);
     updateMapMarkers();
@@ -605,14 +624,17 @@ async function renderAdminPlaceList() {
         container.innerHTML = '<p style="color: red;">Fehler beim Laden.</p>';
     }
 }
+
 // Diese Funktion zeigt alle AKTIVEN Orte und Events im Admin-Bereich an
 function renderAdminManagementList() {
     const container = document.getElementById('admin-live-management');
-    if (!container) return; // Falls das HTML-Element noch nicht existiert
+    if (!container) return;
     
+    // Wir fügen hier einen leeren Container "admin-edit-form" für das Bearbeitungsfenster hinzu
     container.innerHTML = `
         <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2;">
-            <p style="font-weight: bold; margin-bottom: 10px; color: #e65100;">Aktive Orte & Events löschen</p>
+            <p style="font-weight: bold; margin-bottom: 10px; color: #e65100;">Aktive Orte & Events verwalten</p>
+            <div id="admin-edit-form" style="display: none; background: #fff; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.1);"></div>
             <div id="live-items-list"></div>
         </div>
     `;
@@ -625,7 +647,10 @@ function renderAdminManagementList() {
         div.style = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding: 8px 0;";
         div.innerHTML = `
             <span style="font-size: 0.9rem;">📍 <strong>${place.name}</strong></span>
-            <button onclick="deleteLivePlace('${place.id}')" style="background: #f44336; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Löschen</button>
+            <div>
+                <button onclick="editLivePlace('${place.id}')" style="background: #2196F3; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-right: 5px;">✏️ Bearbeiten</button>
+                <button onclick="deleteLivePlace('${place.id}')" style="background: #f44336; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Löschen</button>
+            </div>
         `;
         list.appendChild(div);
     });
@@ -636,12 +661,14 @@ function renderAdminManagementList() {
         div.style = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding: 8px 0; background: #fffde7; margin-top: 5px; border-radius: 4px;";
         div.innerHTML = `
             <span style="font-size: 0.85rem;">📅 ${event.title} (${event.date})</span>
-            <button onclick="deleteLiveEvent('${event.id}')" style="background: #ff9800; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Event entfernen</button>
+            <div>
+                <button onclick="editLiveEvent('${event.id}')" style="background: #2196F3; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-right: 5px;">✏️ Bearbeiten</button>
+                <button onclick="deleteLiveEvent('${event.id}')" style="background: #ff9800; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Entfernen</button>
+            </div>
         `;
         list.appendChild(div);
     });
 }
-
 // NEU: Funktion um die Karte im Hintergrund zu bewegen
 window.showOnMap = function(lat, lng) {
     // 1. Prüfen, ob die Karte existiert
@@ -788,4 +815,98 @@ window.deleteLiveEvent = async function(id) {
     } catch (error) {
         alert("Fehler: " + error.message);
     }
+};
+
+// --- BEARBEITEN VON ORTEN ---
+window.editLivePlace = function(id) {
+    const place = places.find(p => p.id === id);
+    if (!place) return;
+
+    const editForm = document.getElementById('admin-edit-form');
+    const list = document.getElementById('live-items-list');
+
+    // Liste ausblenden, Formular einblenden
+    list.style.display = 'none';
+    editForm.style.display = 'block';
+
+    // Formular mit den aktuellen Daten befüllen
+    editForm.innerHTML = `
+        <h4 style="margin-top: 0; color: var(--primary-color);">Ort bearbeiten</h4>
+        <label style="font-size: 0.8rem;">Name:</label><br>
+        <input type="text" id="edit-place-name" value="${place.name}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;"><br>
+        
+        <label style="font-size: 0.8rem;">Kategorie:</label><br>
+        <input type="text" id="edit-place-category" value="${place.category}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;"><br>
+        
+        <label style="font-size: 0.8rem;">Beschreibung:</label><br>
+        <textarea id="edit-place-info" style="width: 100%; margin-bottom: 10px; padding: 8px; height: 80px; box-sizing: border-box;">${place.info}</textarea><br>
+        
+        <button onclick="savePlaceEdit('${id}')" style="background: #4CAF50; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">Speichern</button>
+        <button onclick="cancelEdit()" style="background: #9e9e9e; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Abbrechen</button>
+    `;
+};
+
+window.savePlaceEdit = async function(id) {
+    const newName = document.getElementById('edit-place-name').value;
+    const newCategory = document.getElementById('edit-place-category').value;
+    const newInfo = document.getElementById('edit-place-info').value;
+
+    try {
+        // Firebase Befehl zum Aktualisieren (updateDoc statt setDoc)
+        await window.firebaseFirestore.updateDoc(window.firebaseFirestore.doc(window.db, "places", id), {
+            name: newName,
+            category: newCategory,
+            info: newInfo
+        });
+        alert("Ort erfolgreich aktualisiert!");
+        cancelEdit(); // Schließt das Formular
+    } catch (error) {
+        alert("Fehler beim Speichern: " + error.message);
+    }
+};
+
+// --- BEARBEITEN VON EVENTS ---
+window.editLiveEvent = function(id) {
+    const event = eventsData.find(e => e.id === id);
+    if (!event) return;
+
+    const editForm = document.getElementById('admin-edit-form');
+    const list = document.getElementById('live-items-list');
+
+    list.style.display = 'none';
+    editForm.style.display = 'block';
+
+    editForm.innerHTML = `
+        <h4 style="margin-top: 0; color: var(--primary-color);">Event bearbeiten</h4>
+        <label style="font-size: 0.8rem;">Titel:</label><br>
+        <input type="text" id="edit-event-title" value="${event.title}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;"><br>
+        
+        <label style="font-size: 0.8rem;">Datum:</label><br>
+        <input type="date" id="edit-event-date" value="${event.date}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;"><br>
+        
+        <button onclick="saveEventEdit('${id}')" style="background: #4CAF50; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">Speichern</button>
+        <button onclick="cancelEdit()" style="background: #9e9e9e; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Abbrechen</button>
+    `;
+};
+
+window.saveEventEdit = async function(id) {
+    const newTitle = document.getElementById('edit-event-title').value;
+    const newDate = document.getElementById('edit-event-date').value;
+
+    try {
+        await window.firebaseFirestore.updateDoc(window.firebaseFirestore.doc(window.db, "events", id), {
+            title: newTitle,
+            date: newDate
+        });
+        alert("Event erfolgreich aktualisiert!");
+        cancelEdit();
+    } catch (error) {
+        alert("Fehler beim Speichern: " + error.message);
+    }
+};
+
+// --- HILFSFUNKTION ---
+window.cancelEdit = function() {
+    document.getElementById('admin-edit-form').style.display = 'none';
+    document.getElementById('live-items-list').style.display = 'block';
 };
