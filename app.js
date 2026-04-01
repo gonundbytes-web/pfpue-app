@@ -49,37 +49,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Echte Daten aus Firebase Firestore laden
 function loadDataFromFirebase() {
-    // Sicherheitscheck: Wurde Firebase in der index.html richtig geladen?
-    if (!window.firebaseFirestore) {
-        console.error("Firebase Firestore wurde nicht gefunden. Bitte überprüfe die index.html.");
-        return;
-    }
+    if (!window.firebaseFirestore) return;
 
     const { onSnapshot, collection } = window.firebaseFirestore;
+    const loadingScreen = document.getElementById('loading-screen');
     
-    // A. Haupt-Orte laden (Echtzeit-Update)
+    // Wir zählen, wie viele Collections wir laden (Places + Events)
+    let collectionsLoaded = 0;
+    const totalToLoad = 2;
+
+    const checkLoadingStatus = () => {
+        collectionsLoaded++;
+        // Wenn beide (Places & Events) zum ersten Mal da sind, Spinner ausblenden
+        if (collectionsLoaded >= totalToLoad) {
+            setTimeout(() => {
+                loadingScreen.classList.add('hidden-loader');
+            }, 500); // Eine halbe Sekunde Puffer für ein ruhigeres Bild
+        }
+    };
+
+    // A. Orte laden
     onSnapshot(collection(window.db, "places"), (snapshot) => {
         places = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         updateMapMarkers();
         if (appState.activeView === 'list-view') renderList();
-        if (appState.activeView === 'calendar-view') renderCalendar();
+        
+        // Status-Check nur beim allerersten Laden
+        if (collectionsLoaded < 1) checkLoadingStatus();
     });
 
-    // B. Vorschläge für Admin laden
+    // B. NEU: Veranstaltungen laden
+    onSnapshot(collection(window.db, "events"), (snapshot) => {
+        eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        updateMapMarkers();
+        if (appState.activeView === 'calendar-view') renderCalendar();
+        
+        // Status-Check nur beim allerersten Laden
+        if (collectionsLoaded < 2) checkLoadingStatus();
+    });
+
+    // C. Vorschläge für Admin (muss nicht auf den Spinner warten)
     onSnapshot(collection(window.db, "suggestions"), (snapshot) => {
         suggestedPlaces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         if (appState.isAdmin) renderAdminPlaceList();
     });
-    // C. NEU: Veranstaltungen laden (Echtzeit-Update)
-    onSnapshot(collection(window.db, "events"), (snapshot) => {
-        eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Aktualisiert alles, sobald sich ein Event ändert
-        updateMapMarkers();
-        if (appState.activeView === 'calendar-view') renderCalendar();
-    });
 }
-
 /* === 1. KARTEN LOGIK === */
 const createIcon = (char) => {
     return L.divIcon({
