@@ -1,6 +1,8 @@
 /* Globale Stile & Variablen */
 :root {
-    --primary-color: #4CAF50; /* Grün für PWA-Feeling */
+    /*#4CAF50;  Grün für PWA-Feeling */
+    --primary-color: #4a6741; 
+    --primary-dark: #354b2f;
     --background-color: #f5f5f5;
     --text-color: #333;
     --bar-color: #fff;
@@ -49,7 +51,7 @@ body {
 .app-bar span {
     font-size: 18px;
     font-weight: bold;
-    color: var(--text-color);
+    color: var(--primary-color);
 }
 
 #admin-login-btn {
