@@ -542,3 +542,14 @@ main section.active-view {
     opacity: 0;
     pointer-events: none;
 }
+#header-logo {
+    height: 40px;      /* Hier kannst du die Höhe genau anpassen */
+    width: auto;       /* Behält das Seitenverhältnis bei */
+    display: block;
+    border-radius: 4px; /* Optional: macht die Ecken leicht rund */
+}
+
+/* Falls das graue Logo neben dem Admin weg soll: */
+.admin-icon, .login-icon { 
+    display: none !important; 
+}
