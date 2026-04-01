@@ -114,8 +114,8 @@ const categoryIcons = {
 function initMap() {
     // Karte initialisieren OHNE automatische Zoom-Buttons
     map = L.map('map', {
-        zoomControl: false // Wir schalten die Standard-Buttons links oben aus
-        //attributionControl: true 
+        zoomControl: false, // Wir schalten die Standard-Buttons links oben aus
+        attributionControl: false
     }).setView([49.301, 10.572], 13);
 
     // Jetzt fügen wir die Zoom-Buttons manuell unten rechts hinzu
