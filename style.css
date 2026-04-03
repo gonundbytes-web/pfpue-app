@@ -555,3 +555,33 @@ main section.active-view {
 .admin-icon, .login-icon { 
     display: none !important; 
 }
+/* Das Admin-Modal auf dem Handy optimieren */
+#admin-modal .modal-content {
+    width: 95%; /* Nutzt auf dem Smartphone fast die ganze Breite */
+    max-width: 800px;
+    max-height: 90vh; /* Modal wird nie größer als der Bildschirm */
+    overflow-y: auto; /* Erlaubt das Scrollen des gesamten Fensters */
+    padding: 15px;
+}
+
+/* Die Container für die Listen bekommen eine feste Maximalhöhe und Scrollbalken */
+#admin-place-list, 
+#live-items-list {
+    max-height: 300px; /* Ab dieser Höhe muss gescrollt werden */
+    overflow-y: auto;
+    padding-right: 5px; /* Etwas Platz für den Scrollbalken */
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background: #fafafa;
+}
+
+/* Damit die Scrollbar nicht so klobig aussieht (optional) */
+#admin-place-list::-webkit-scrollbar,
+#live-items-list::-webkit-scrollbar {
+    width: 6px;
+}
+#admin-place-list::-webkit-scrollbar-thumb,
+#live-items-list::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 3px;
+}

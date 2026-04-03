@@ -644,7 +644,7 @@ function renderAdminManagementList() {
     // 1. Alle echten Orte (places) auflisten
     places.forEach(place => {
         const div = document.createElement('div');
-        div.style = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding: 8px 0;";
+        div.style = "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #ccc; padding: 10px;";
         div.innerHTML = `
             <span style="font-size: 0.9rem;">📍 <strong>${place.name}</strong></span>
             <div>
@@ -658,7 +658,7 @@ function renderAdminManagementList() {
     // 2. Alle echten Events (eventsData) auflisten
     eventsData.forEach(event => {
         const div = document.createElement('div');
-        div.style = "display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding: 8px 0; background: #fffde7; margin-top: 5px; border-radius: 4px;";
+        div.style = "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #ccc; padding: 10px; background: #fffde7;";
         div.innerHTML = `
             <span style="font-size: 0.85rem;">📅 ${event.title} (${event.date})</span>
             <div>
