@@ -71,14 +71,15 @@
                     <svg class="arrow-icon" viewBox="0 0 24 24"><path d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" /></svg>
                 </button>
                 <div id="filter-dropdown-content" class="hidden">
-                    <label><input type="checkbox" data-category="Metzgerei" checked> Metzgerei</label>
-                    <label><input type="checkbox" data-category="Wirtshaus" checked> Wirtshaus</label>
-                    <label><input type="checkbox" data-category="Supermarkt" checked> Supermarkt</label>
                     <label><input type="checkbox" data-category="Bäckerei" checked> Bäckerei</label>
+                    <label><input type="checkbox" data-category="Metzgerei" checked> Metzgerei</label>
+                    <label><input type="checkbox" data-category="Supermarkt" checked> Supermarkt</label>
                     <label><input type="checkbox" data-category="Pausenplatz" checked> Pausenplatz</label>
-                    <label><input type="checkbox" data-category="Zigarettenautomat" checked> Zigarettenautomat</label>
-                    <label><input type="checkbox" data-category="Kirchweih" checked> Kirchweih</label>
-                    <label><input type="checkbox" data-category="WC" checked> WC</label>
+                    <label><input type="checkbox" data-category="Wirtshaus" > Wirtshaus/ Imbiss</label>
+                    <label><input type="checkbox" data-category="Kirchweih" > Kirchweih</label>
+                    <label><input type="checkbox" data-category="Zigarettenautomat" > Zigarettenautomat</label>
+                    <label><input type="checkbox" data-category="WC" > WC</label>
+                    <label><input type="checkbox" data-category="Sonstiges" > Sonstiges</label>
                 </div>
             </div>
             <button id="show-my-location-btn">
@@ -91,14 +92,15 @@
                 <input type="text" id="list-search-input" placeholder="Nach Ort oder Name suchen...">
                 <select id="list-category-filter">
                     <option value="all">Alle Kategorien</option>
-                    <option value="Metzgerei">Metzgerei</option>
-                    <option value="Wirtshaus">Wirtshaus</option>
-                    <option value="Supermarkt">Supermarkt</option>
                     <option value="Bäckerei">Bäckerei</option>
+                    <option value="Metzgerei">Metzgerei</option>
+                    <option value="Supermarkt">Supermarkt</option>
                     <option value="Pausenplatz">Pausenplatz</option>
-                    <option value="Zigarettenautomat">Zigarettenautomat</option>
+                    <option value="Wirtshaus">Wirtshaus/ Imbiss</option>
                     <option value="Kirchweih">Kirchweih</option>
+                    <option value="Zigarettenautomat">Zigarettenautomat</option>
                     <option value="WC">WC</option>
+                    <option value="Sonstiges">Sonstiges</option>
                 </select>
             </div>
             <div id="place-list-container">
@@ -128,13 +130,13 @@
                  <label for="new-place-category" style="display: block; margin-top: 10px; font-size: 0.9rem; color: #555;">Kategorie wählen:</label>
                     <select id="new-place-category" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
                         <option value="" disabled selected>Bitte wählen...</option>
-                        <option value="Metzgerei">Metzgerei</option>
                         <option value="Bäckerei">Bäckerei</option>
+                        <option value="Metzgerei">Metzgerei</option>
                         <option value="Supermarkt">Supermarkt</option>
-                        <option value="Wirtshaus">Wirtshaus</option>
                         <option value="Pausenplatz">Pausenplatz</option>
-                        <option value="Zigarettenautomat">Zigarettenautomat</option>
+                        <option value="Wirtshaus">Wirtshaus/ Imbiss</option>
                         <option value="Kirchweih">Kirchweih</option>
+                        <option value="Zigarettenautomat">Zigarettenautomat</option>
                         <option value="WC">WC</option>
                         <option value="Sonstiges">Sonstiges</option>
                     </select>
