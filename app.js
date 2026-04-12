@@ -6,7 +6,7 @@ let eventsData = []; // Hier landen alle Veranstaltungen aus der Datenbank
 // App-Status
 let appState = {
     activeView: 'map-view',
-    activeFilters: ['Metzgerei', 'Wirtshaus', 'Supermarkt', 'Bäckerei', 'Pausenplatz', 'Zigarettenautomat', 'Kirchweih', 'WC'],
+    activeFilters: ['Bäckerei', 'Metzgerei','Supermarkt','Pausenplatz','Wirtshaus','WC'],
     userLocation: null,
     selectedCalendarDay: new Date(),
     isAdmin: false
@@ -215,7 +215,7 @@ function initMapInteractions() {
             } else {
                 appState.activeFilters = appState.activeFilters.filter(f => f !== category);
             }
-            filterActiveCountSpan.textContent = `${appState.activeFilters.length}/8 aktiv`;
+            filterActiveCountSpan.textContent = `${appState.activeFilters.length}/6 aktiv`;
             updateMapMarkers();
         });
     });
