@@ -439,18 +439,49 @@ document.getElementById('next-month').addEventListener('click', () => {
 function renderEventsForDay(dateStr) {
     eventListContainer.innerHTML = `<h3>Termine am ${appState.selectedCalendarDay.toLocaleDateString('de-DE')}</h3>`;
     
-    // Wir filtern jetzt in der neuen eventsData Liste
     const eventsAtDay = eventsData.filter(e => e.date === dateStr);
     
     if (eventsAtDay.length === 0) {
         eventListContainer.innerHTML += '<p>Keine Termine gefunden.</p>';
     } else {
         eventsAtDay.forEach(e => {
-            eventListContainer.innerHTML += `
-                <div class="event-item" style="background: #fff; padding: 10px; margin-bottom: 5px; border-left: 4px solid var(--primary-color); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <strong style="color: var(--primary-color);">${e.title}</strong><br>
-                    <small>Ort: ${e.placeName}</small>
-                </div>`;
+            // 1. Das HTML-Element für den Termin erstellen
+            const eventItem = document.createElement('div');
+            eventItem.className = 'event-item';
+            eventItem.style.cssText = "background: #fff; padding: 12px; margin-bottom: 8px; border-left: 4px solid var(--primary-color); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;";
+            
+            eventItem.innerHTML = `
+                <strong style="color: var(--primary-color); font-size: 1rem;">${e.title}</strong><br>
+                <small style="color: #555;">📍 Ort: <strong>${e.placeName}</strong> (Klick zum Zeigen)</small>
+            `;
+
+            // 2. Den Klick-Event hinzufügen
+            eventItem.addEventListener('click', () => {
+                // Den zugehörigen Ort in unseren Daten finden
+                const targetPlace = places.find(p => p.id === e.placeId);
+
+                if (targetPlace) {
+                    // Zur Kartenansicht wechseln (simuliert Klick auf Nav-Button)
+                    const navMapItem = document.querySelector('.nav-item[data-view="map-view"]');
+                    navMapItem.click(); 
+
+                    // Zur Position fliegen
+                    map.flyTo(targetPlace.coords, 18);
+
+                    // Das Popup des Markers automatisch öffnen
+                    markerLayer.eachLayer(layer => {
+                        if (layer instanceof L.Marker && 
+                            layer.getLatLng().lat === targetPlace.coords[0] && 
+                            layer.getLatLng().lng === targetPlace.coords[1]) {
+                            layer.openPopup();
+                        }
+                    });
+                } else {
+                    alert("Der zugehörige Ort wurde leider nicht gefunden.");
+                }
+            });
+
+            eventListContainer.appendChild(eventItem);
         });
     }
 }
