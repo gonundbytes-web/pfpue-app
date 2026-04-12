@@ -204,10 +204,16 @@ function updateMapMarkers() {
                     <h3 style="margin: 0 0 5px 0;">${place.name}</h3>
                     <p style="margin: 0; font-size: 0.9rem;"><strong>Kategorie:</strong> ${place.category}</p>
                     <p style="margin: 5px 0; font-size: 0.85rem; color: #666;">${place.info || ''}</p>
+                    
+                    ${place.website ? `
+                        <a href="${place.website}" target="_blank" rel="noopener" 
+                        style="display: block; margin-top: 10px; padding: 8px; background: #4a6741; color: white; text-align: center; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.8rem;">
+                        🌐 Website besuchen
+                        </a>` : ''}
+
                     ${eventHtml}
                 </div>
             `;
-            
             // 4. Icon bestimmen (Fallback auf Sonstiges, falls Kategorie unbekannt)
             const iconToUse = categoryIcons[place.category] || categoryIcons["Sonstiges"];
 
@@ -340,6 +346,7 @@ function renderList() {
                 <h3>${place.name}</h3>
                 <p><strong>Kategorie:</strong> ${place.category}</p>
                 <p>${place.info.substring(0, 50)}...</p>
+                ${place.website ? `<small style="color: #4a6741;">🔗 Website verfügbar</small>` : ''}
             `;
             placeItem.addEventListener('click', () => {
                 const navMapItem = document.querySelector('.nav-item[data-view="map-view"]');
@@ -556,6 +563,7 @@ if (newPlaceForm) {
                 name: document.getElementById('new-place-name').value,
                 category: document.getElementById('new-place-category').value,
                 info: document.getElementById('new-place-info').value,
+                website: document.getElementById('new-place-website').value,
                 coords: coordsArray,
                 // Event-Daten (falls vorhanden)
                 eventTitle: document.getElementById('event-title')?.value || null,
@@ -666,6 +674,9 @@ async function renderAdminPlaceList() {
                     <label style="font-size: 0.7rem; color: #777;">Name:</label>
                     <input type="text" id="edit-name-${id}" value="${data.name}" style="width: 100%; padding: 5px; margin-bottom: 5px;">
                     
+                    <label style="font-size: 0.7rem; color: #777;">Website:</label>
+                    <input type="url" id="edit-website-${id}" value="${data.website || ''}" placeholder="https://..." style="width: 100%; padding: 5px; margin-bottom: 5px;">
+
                     <label style="font-size: 0.7rem; color: #777;">Infos / Zeiten:</label>
                     <textarea id="edit-info-${id}" style="width: 100%; height: 60px; padding: 5px;">${data.info || ''}</textarea>
                     
