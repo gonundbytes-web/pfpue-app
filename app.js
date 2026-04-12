@@ -910,3 +910,70 @@ window.cancelEdit = function() {
     document.getElementById('admin-edit-form').style.display = 'none';
     document.getElementById('live-items-list').style.display = 'block';
 };
+
+/* =========================================
+   NEU: TERMINE IM ADMIN-BEREICH VERWALTEN
+   ========================================= */
+
+// 1. Dropdown mit Orten füllen, wenn der Admin-Button geklickt wird
+document.getElementById('admin-login-btn').addEventListener('click', () => {
+    const dropdown = document.getElementById('new-event-place-id');
+    if (!dropdown) return;
+    
+    // Altes leeren und Standard-Option setzen
+    dropdown.innerHTML = '<option value="">-- Bitte Ort wählen --</option>';
+    
+    // Alle freigegebenen Orte alphabetisch sortieren (optional, aber übersichtlicher)
+    const sortedPlaces = [...places].sort((a, b) => a.name.localeCompare(b.name));
+
+    // Für jeden Ort eine Auswahlmöglichkeit erstellen
+    sortedPlaces.forEach(place => {
+        const option = document.createElement('option');
+        option.value = place.id; // Die Firebase-ID wird versteckt gespeichert
+        option.textContent = place.name; // Der Name wird angezeigt
+        dropdown.appendChild(option);
+    });
+});
+
+// 2. Klick auf "Termin speichern" abfangen und an Firebase senden
+document.addEventListener('DOMContentLoaded', () => {
+    const saveEventBtn = document.getElementById('btn-save-new-event');
+    
+    if (saveEventBtn) {
+        saveEventBtn.addEventListener('click', async () => {
+            const placeId = document.getElementById('new-event-place-id').value;
+            const title = document.getElementById('new-event-title').value;
+            const date = document.getElementById('new-event-date').value;
+
+            // Prüfen, ob der Admin alles ausgefüllt hat
+            if (!placeId || !title || !date) {
+                alert("Bitte wähle einen Ort aus und fülle Titel sowie Datum aus!");
+                return;
+            }
+
+            // Den Namen des Ortes für den Kalender heraussuchen
+            const selectedPlace = places.find(p => p.id === placeId);
+            const placeName = selectedPlace ? selectedPlace.name : "Unbekannter Ort";
+
+            try {
+                // In Firebase speichern
+                await window.firebaseFirestore.addDoc(window.firebaseFirestore.collection(window.db, "events"), {
+                    placeId: placeId,
+                    placeName: placeName, // Wichtig für die Anzeige in der Kalender-Liste
+                    title: title,
+                    date: date
+                });
+                
+                alert("Termin erfolgreich gespeichert!");
+                
+                // Formular wieder leeren, falls man direkt noch einen Termin eintragen will
+                document.getElementById('new-event-title').value = '';
+                document.getElementById('new-event-date').value = '';
+                
+            } catch (error) {
+                alert("Fehler beim Speichern: " + error.message);
+                console.error(error);
+            }
+        });
+    }
+});

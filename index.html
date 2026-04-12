@@ -193,6 +193,34 @@
             <p>Hier sind die eingereichten Orte:</p>
             <div id="submitted-places-list">
                 </div>
+            <div id="admin-modal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Admin Panel (Demo)</h2>
+            <p>Hier sind die eingereichten Orte:</p>
+            <div id="submitted-places-list">
+            </div>
+
+            <hr style="margin: 30px 0 15px 0;">
+            <h3 style="margin-top: 0;">Neuen Termin anlegen</h3>
+            <div style="background: #f1f8e9; padding: 15px; border: 1px solid #c5e1a5; border-radius: 5px; margin-bottom: 20px;">
+                <label style="font-size: 0.9rem; font-weight: bold;">Zugehöriger Ort:</label><br>
+                <select id="new-event-place-id" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;"></select><br>
+
+                <label style="font-size: 0.9rem; font-weight: bold;">Titel des Termins:</label><br>
+                <input type="text" id="new-event-title" placeholder="z.B. Schlachtschüssel" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;"><br>
+
+                <label style="font-size: 0.9rem; font-weight: bold;">Datum:</label><br>
+                <input type="date" id="new-event-date" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;"><br>
+
+                <button id="btn-save-new-event" style="padding: 10px 15px; background: var(--primary-color); color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold;">Termin speichern</button>
+            </div>
+            </div>
+        <hr style="margin: 20px 0;">
+        <h3>Live-Daten verwalten</h3>
+        <div id="admin-live-management">
+        </div>
+    </div>
         </div>
         <hr style="margin: 20px 0;">
         <h3>Live-Daten verwalten</h3>
