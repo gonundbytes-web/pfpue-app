@@ -179,8 +179,9 @@ function updateMapMarkers() {
     markerLayer.clearLayers();
     
     places.forEach(place => {
+        // Prüfen, ob die Kategorie aktiv gefiltert ist
         if (appState.activeFilters.includes(place.category)) {
-            const icon = categoryIcons[place.category] || createIcon('?');
+            
             // 1. Alle Events finden, die zu diesem speziellen Ort gehören
             const placeEvents = eventsData.filter(e => e.placeId === place.id);
 
@@ -190,32 +191,33 @@ function updateMapMarkers() {
                 eventHtml = `<div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px;">
                                 <strong style="font-size: 0.8rem; color: #d32f2f;">📅 Aktuelle Termine:</strong><br>`;
                 placeEvents.forEach(e => {
-                    const dateParts = e.date.split('-'); // Format YYYY-MM-DD
-                    const dateString = `${dateParts[2]}.${dateParts[1]}.`; // Wird zu DD.MM.
+                    const dateParts = e.date.split('-'); 
+                    const dateString = `${dateParts[2]}.${dateParts[1]}.`; 
                     eventHtml += `<small>• ${dateString}: <strong>${e.title}</strong></small><br>`;
                 });
                 eventHtml += `</div>`;
             }
 
+            // 3. Popup-Inhalt zusammenbauen
             const popupContent = `
                 <div class="popup-content">
                     <h3 style="margin: 0 0 5px 0;">${place.name}</h3>
                     <p style="margin: 0; font-size: 0.9rem;"><strong>Kategorie:</strong> ${place.category}</p>
-                    <p style="margin: 5px 0; font-size: 0.85rem; color: #666;">${place.info}</p>
+                    <p style="margin: 5px 0; font-size: 0.85rem; color: #666;">${place.info || ''}</p>
                     ${eventHtml}
                 </div>
             `;
             
-            // Neu:
-            const iconToUse = categoryIcons[place.category] || categoryIcons["Sonstiges"]; // Fallback, falls Kategorie fehlt
+            // 4. Icon bestimmen (Fallback auf Sonstiges, falls Kategorie unbekannt)
+            const iconToUse = categoryIcons[place.category] || categoryIcons["Sonstiges"];
 
+            // 5. Marker erstellen und zur Karte hinzufügen
             L.marker(place.coords, { icon: iconToUse })
-                .bindPopup(popupInhalt)
+                .bindPopup(popupContent) // Korrigiert: hieß vorher popupInhalt
                 .addTo(markerLayer);
-                    }
-                });
+        }
+    });
 }
-
 function initMapInteractions() {
     const filterBtn = document.getElementById('filter-dropdown-btn');
     const filterContent = document.getElementById('filter-dropdown-content');
