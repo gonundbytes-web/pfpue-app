@@ -218,12 +218,22 @@ function updateMapMarkers() {
         }
     });
 }
+
 function initMapInteractions() {
     const filterBtn = document.getElementById('filter-dropdown-btn');
     const filterContent = document.getElementById('filter-dropdown-content');
     const filterCheckboxes = filterContent.querySelectorAll('input[type="checkbox"]');
     const filterActiveCountSpan = document.getElementById('filter-active-count');
-    const myLocationBtn = document.getElementById('show-my-location-btn');
+    
+    // Funktion zum Aktualisieren des Zählers
+    const updateFilterCounter = () => {
+        const total = filterCheckboxes.length; // Das sind 9
+        const active = appState.activeFilters.length;
+        filterActiveCountSpan.textContent = `${active}/${total} aktiv`;
+    };
+
+    // Einmal beim Laden ausführen, damit "6/9" sofort da steht
+    updateFilterCounter();
 
     filterBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -240,12 +250,15 @@ function initMapInteractions() {
             } else {
                 appState.activeFilters = appState.activeFilters.filter(f => f !== category);
             }
-            filterActiveCountSpan.textContent = `${appState.activeFilters.length}/6 aktiv`;
+            
+            // Zähler aktualisieren
+            updateFilterCounter();
+            // Marker auf der Karte neu zeichnen
             updateMapMarkers();
         });
     });
 
-    myLocationBtn.addEventListener('click', showMyLocation);
+    document.getElementById('show-my-location-btn').addEventListener('click', showMyLocation);
 }
 
 function showMyLocation() {
