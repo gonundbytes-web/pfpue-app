@@ -95,7 +95,7 @@ function loadDataFromFirebase() {
     });
 }
 /* === 1. KARTEN LOGIK === */
-const createIcon = (char) => {
+/*const createIcon = (char) => {
     return L.divIcon({
         className: 'custom-div-icon',
         html: `<div style="background-color: var(--primary-color); color: #fff; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5);">${char}</div>`,
@@ -109,8 +109,28 @@ const categoryIcons = {
     Metzgerei: createIcon('M'), Wirtshaus: createIcon('W'), Supermarkt: createIcon('S'),
     Bäckerei: createIcon('B'), Pausenplatz: createIcon('P'), Zigarettenautomat: createIcon('Z'),
     Kirchweih: createIcon('K'), WC: createIcon('WC')
-};
+};*/
+// Wir definieren eine Basis-Icon-Klasse für einheitliche Größe
+const BaseMapIcon = L.Icon.extend({
+    options: {
+        iconSize: [35, 35], // Die Größe der Icons (Breite, Höhe) in Pixel
+        iconAnchor: [17, 35], // Der Ankerpunkt, der auf der Karte fixiert wird (Mitte-Unten)
+        popupAnchor: [0, -35] // Wo das Popup relativ zum Ankerpunkt erscheint
+    }
+});
 
+// Wir erstellen Instanzen für jede Kategorie
+const categoryIcons = {
+    Bäckerei: new BaseMapIcon({ iconUrl: 'assets/icons/icon_baeckerei.png' }),
+    Metzgerei: new BaseMapIcon({ iconUrl: 'assets/icons/icon_metzgerei.png' }),
+    Supermarkt: new BaseMapIcon({ iconUrl: 'assets/icons/icon_supermarkt.png' }),
+    Pausenplatz: new BaseMapIcon({ iconUrl: 'assets/icons/icon_pausenplatz.png' }),
+    Wirtshaus: new BaseMapIcon({ iconUrl: 'assets/icons/icon_wirtshaus.png' }),
+    WC: new BaseMapIcon({ iconUrl: 'assets/icons/icon_wc.png' }),
+    Kirchweih: new BaseMapIcon({ iconUrl: 'assets/icons/icon_kirchweih.png' }),
+    Zigarettenautomat: new BaseMapIcon({ iconUrl: 'assets/icons/icon_zigarettenautomat.png' }),
+    Sonstiges: new BaseMapIcon({ iconUrl: 'assets/icons/icon_sonstiges.png' })
+};
 function initMap() {
     // 1. Die verschiedenen Karten-Hintergründe (TileLayers) definieren
 
@@ -186,11 +206,14 @@ function updateMapMarkers() {
                 </div>
             `;
             
-            L.marker(place.coords, { icon: icon })
-                .bindPopup(popupContent)
+            // Neu:
+            const iconToUse = categoryIcons[place.category] || categoryIcons["Sonstiges"]; // Fallback, falls Kategorie fehlt
+
+            L.marker(place.coords, { icon: iconToUse })
+                .bindPopup(popupInhalt)
                 .addTo(markerLayer);
-        }
-    });
+                    }
+                });
 }
 
 function initMapInteractions() {
