@@ -36,13 +36,10 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <meta name="theme-color" content="#4CAF50">
+    <!--<meta name="theme-color" content="#4a6741">-->
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
     <link rel="stylesheet" href="style.css">
-    <link rel="apple-touch-icon" href="assets/icon-192.png">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#4a6741">
 </head>
 <body>
 
@@ -103,8 +100,7 @@
                     <option value="Sonstiges">Sonstiges</option>
                 </select>
             </div>
-            <div id="place-list-container">
-                </div>
+            <div id="place-list-container"></div>
         </section>
 
         <section id="calendar-view">
@@ -135,7 +131,6 @@
                         <option value="Supermarkt">Supermarkt</option>
                         <option value="Pausenplatz">Pausenplatz</option>
                         <option value="Wirtshaus">Wirtshaus</option>
-                        <option value="WC">WC</option>
                         <option value="Kirchweih">Kirchweih</option>
                         <option value="Zigarettenautomat">Zigarettenautomat</option>
                         <option value="WC">WC</option>
@@ -143,7 +138,7 @@
                     </select>
 
             <textarea id="new-place-info" placeholder="Zusatzinformationen, Termine, Öffnungszeiten..." style="height: 80px;"></textarea>
-
+            <input type="url" id="new-place-website" placeholder="Website (optional, inkl. https://)" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
             <input type="hidden" id="new-place-coords">
 
             <p style="font-size: 0.9rem; color: #555; margin-bottom: 8px;">
