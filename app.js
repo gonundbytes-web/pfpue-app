@@ -20,6 +20,19 @@ let markerLayer = L.layerGroup();
 let userMarker;
 let userAccuracyCircle;
 
+// Hilfsfunktion für Datumsformatierung
+function formatEventDate(start, end) {
+    if (!start) return "";
+    const sParts = start.split('-');
+    const sStr = `${sParts[2]}.${sParts[1]}.`;
+    if (end && end !== start) {
+        const eParts = end.split('-');
+        const eStr = `${eParts[2]}.${eParts[1]}.`;
+        return `${sStr} - ${eStr}`;
+    }
+    return sStr; 
+}
+
 /* === DOM-Elemente === */
 const mainContent = document.querySelector('main');
 const navItems = document.querySelectorAll('.nav-item');
@@ -141,18 +154,17 @@ function updateMapMarkers() {
             
             const placeEvents = eventsData.filter(e => e.placeId === place.id);
             let eventHtml = "";
+
             if (placeEvents.length > 0) {
                 eventHtml = `<div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px;">
-                                <strong style="font-size: 0.8rem; color: #d32f2f;">📅 Aktuelle Termine:</strong><br>`;
+                    <strong style="font-size: 0.8rem; color: #d32f2f;">📅 Aktuelle Termine:</strong><br>`;
                 placeEvents.forEach(e => {
-                    const dateParts = e.date.split('-'); 
-                    const dateString = `${dateParts[2]}.${dateParts[1]}.`; 
+                    const dateString = formatEventDate(e.date, e.endDate); 
                     eventHtml += `<small>• ${dateString}: <strong>${e.title}</strong></small><br>`;
                 });
                 eventHtml += `</div>`;
             }
 
-            // Sichere Website-URL (stellt sicher, dass http:// davor steht, sonst klappt der Link nicht)
             let safeWebsite = place.website ? (place.website.startsWith('http') ? place.website : 'https://' + place.website) : '';
 
             const popupContent = `
@@ -358,7 +370,12 @@ function renderCalendar() {
                 cell.textContent = date;
                 const fullDateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${date.toString().padStart(2, '0')}`;
                 
-                const hasEvent = eventsData.some(e => e.date === fullDateStr);
+                const hasEvent = eventsData.some(e => {
+                    const start = e.date;
+                    const end = e.endDate || e.date; 
+                    return fullDateStr >= start && fullDateStr <= end;
+                });
+
                 if (hasEvent) cell.classList.add('has-event');
 
                 if (date === appState.selectedCalendarDay.getDate() && 
@@ -394,8 +411,12 @@ document.getElementById('next-month').addEventListener('click', () => {
 
 function renderEventsForDay(dateStr) {
     eventListContainer.innerHTML = `<h3>Termine am ${appState.selectedCalendarDay.toLocaleDateString('de-DE')}</h3>`;
-    
-    const eventsAtDay = eventsData.filter(e => e.date === dateStr);
+
+    const eventsAtDay = eventsData.filter(e => {
+        const start = e.date;
+        const end = e.endDate || e.date;
+        return dateStr >= start && dateStr <= end;
+    });
     
     if (eventsAtDay.length === 0) {
         eventListContainer.innerHTML += '<p>Keine Termine gefunden.</p>';
@@ -431,16 +452,6 @@ function renderEventsForDay(dateStr) {
         });
     }
 }
-
-document.getElementById('go-to-today').addEventListener('click', () => {
-    const today = new Date();
-    displayedDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    appState.selectedCalendarDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    renderCalendar();
-    
-    const fullDateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
-    renderEventsForDay(fullDateStr);
-});
 
 /* === 5. "NEU"-ANSICHT (Vorschläge an Firebase senden) === */
 function initNewPlaceMap() {
@@ -503,6 +514,7 @@ if (newPlaceForm) {
                 coords: coordsArray,
                 eventTitle: document.getElementById('event-title')?.value || null,
                 eventDate: document.getElementById('event-date')?.value || null,
+                eventEndDate: document.getElementById('event-end-date')?.value || null, 
                 submittedAt: new Date()
             };
 
@@ -619,8 +631,11 @@ async function renderAdminPlaceList() {
                 
                 <div style="background: #e3f2fd; padding: 8px; margin-top: 10px; border-radius: 4px;">
                     <strong>Event-Vorschlag:</strong><br>
-                    <input type="text" id="edit-event-title-${id}" value="${data.eventTitle || ''}" placeholder="Kein Event" style="width: 70%;">
-                    <input type="date" id="edit-event-date-${id}" value="${data.eventDate || ''}">
+                    <input type="text" id="edit-event-title-${id}" value="${data.eventTitle || ''}" placeholder="Kein Event" style="width: 70%; margin-bottom: 5px;">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="date" id="edit-event-date-${id}" value="${data.eventDate || ''}" style="flex: 1;">
+                        <input type="date" id="edit-event-end-date-${id}" value="${data.eventEndDate || ''}" style="flex: 1;">
+                    </div>
                 </div>
             `;
             container.appendChild(item);
@@ -662,7 +677,7 @@ function renderAdminManagementList() {
         const div = document.createElement('div');
         div.style = "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #ccc; padding: 10px; background: #fffde7;";
         div.innerHTML = `
-            <span style="font-size: 0.85rem;">📅 ${event.title} (${event.date})</span>
+            <span style="font-size: 0.85rem;">📅 ${event.title} (${formatEventDate(event.date, event.endDate)})</span>
             <div>
                 <button onclick="editLiveEvent('${event.id}')" style="background: #2196F3; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; margin-right: 5px;">✏️ Bearbeiten</button>
                 <button onclick="deleteLiveEvent('${event.id}')" style="background: #ff9800; border: none; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">Entfernen</button>
@@ -683,11 +698,6 @@ window.showOnMap = function(lat, lng) {
 
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lng);
-
-    if (isNaN(latitude) || isNaN(longitude)) {
-        console.error("Ungültige Koordinaten:", lat, lng);
-        return;
-    }
 
     currentMap.setView([latitude, longitude], 18);
 
@@ -715,6 +725,7 @@ window.approvePlace = async function(id) {
     const updatedInfo = document.getElementById(`edit-info-${id}`).value;
     const updatedEventTitle = document.getElementById(`edit-event-title-${id}`)?.value || "";
     const updatedEventDate = document.getElementById(`edit-event-date-${id}`)?.value || "";
+    const updatedEventEndDate = document.getElementById(`edit-event-end-date-${id}`)?.value || ""; 
 
     if (!confirm("Änderungen speichern und Ort veröffentlichen?")) return;
 
@@ -741,6 +752,7 @@ window.approvePlace = async function(id) {
                 await addDoc(collection(window.db, "events"), {
                     title: updatedEventTitle,
                     date: updatedEventDate,
+                    endDate: updatedEventEndDate || null, 
                     placeName: updatedName,
                     placeId: newPlaceDoc.id,
                     createdAt: new Date()
@@ -852,9 +864,17 @@ window.editLiveEvent = function(id) {
         <label style="font-size: 0.8rem;">Titel:</label><br>
         <input type="text" id="edit-event-title" value="${event.title}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;"><br>
         
-        <label style="font-size: 0.8rem;">Datum:</label><br>
-        <input type="date" id="edit-event-date" value="${event.date}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;"><br>
-        
+        <div style="display: flex; gap: 10px;">
+            <div style="flex: 1;">
+                <label style="font-size: 0.8rem;">Startdatum:</label><br>
+                <input type="date" id="edit-event-date" value="${event.date}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;">
+            </div>
+            <div style="flex: 1;">
+                <label style="font-size: 0.8rem;">Enddatum:</label><br>
+                <input type="date" id="edit-event-end-date" value="${event.endDate || ''}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;">
+            </div>
+        </div>
+
         <button onclick="saveEventEdit('${id}')" style="background: #4CAF50; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">Speichern</button>
         <button onclick="cancelEdit()" style="background: #9e9e9e; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 10px;">Abbrechen</button>
     `;
@@ -863,11 +883,13 @@ window.editLiveEvent = function(id) {
 window.saveEventEdit = async function(id) {
     const newTitle = document.getElementById('edit-event-title').value;
     const newDate = document.getElementById('edit-event-date').value;
+    const newEndDate = document.getElementById('edit-event-end-date').value;
 
     try {
         await window.firebaseFirestore.updateDoc(window.firebaseFirestore.doc(window.db, "events", id), {
             title: newTitle,
-            date: newDate
+            date: newDate,
+            endDate: newEndDate || null 
         });
         alert("Event erfolgreich aktualisiert!");
         cancelEdit();
@@ -898,6 +920,7 @@ document.getElementById('admin-login-btn').addEventListener('click', () => {
     });
 });
 
+// EventListener sauber getrennt und Fehler korrigiert
 document.addEventListener('DOMContentLoaded', () => {
     const saveEventBtn = document.getElementById('btn-save-new-event');
     
@@ -906,9 +929,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const placeId = document.getElementById('new-event-place-id').value;
             const title = document.getElementById('new-event-title').value;
             const date = document.getElementById('new-event-date').value;
+            const endDate = document.getElementById('new-event-end-date').value;
 
-            if (!placeId || !title || !date) {
-                alert("Bitte wähle einen Ort aus und fülle Titel sowie Datum aus!");
+            if (!placeId || !title || !date) { 
+                alert("Bitte wähle einen Ort aus und fülle Titel sowie Start-Datum aus!");
                 return;
             }
 
@@ -920,13 +944,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     placeId: placeId,
                     placeName: placeName, 
                     title: title,
-                    date: date
+                    date: date,
+                    endDate: endDate || null 
                 });
                 
                 alert("Termin erfolgreich gespeichert!");
                 
                 document.getElementById('new-event-title').value = '';
                 document.getElementById('new-event-date').value = '';
+                document.getElementById('new-event-end-date').value = '';
                 
             } catch (error) {
                 alert("Fehler beim Speichern: " + error.message);

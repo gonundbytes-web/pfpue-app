@@ -6,7 +6,6 @@
         import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // DEINE KONFIGURATION HIER EINFÜGEN (aus Schritt 1.5)
         const firebaseConfig = {
             apiKey: "AIzaSyCvkuqdZvvFI14r6DMznSDG16cTODdcZ1E",
             authDomain: "pfpue-app.firebaseapp.com",
@@ -16,27 +15,22 @@
             appId: "1:310825538473:web:a9cd37ea3b7902a8e26ab8"
         };
         
-
-        // Firebase initialisieren
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        // Exponiere Firebase-Funktionen für die app.js
+        
         window.db = db;
         window.auth = auth;
         window.firebaseFirestore = { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot };
         window.firebaseAuth = { signInWithEmailAndPassword, onAuthStateChanged, signOut };
-
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PFPÜ – Pausenfestpunktübersicht</title>
     
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <meta name="theme-color" content="#4CAF50">
-    <!--<meta name="theme-color" content="#4a6741">-->
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+    <meta name="theme-color" content="#4a6741">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="style.css">
@@ -46,18 +40,19 @@
     <header class="app-bar">
         <div class="logo">
             <img src="assets/logo.jpg" alt="Logo" id="header-logo">
-            <!--<svg class="map-icon" viewBox="0 0 24 24"><path d="M20,3H4A2,2 0 0,0 2,5V19A2,2 0 0,0 4,21H20A2,2 0 0,0 22,19V5A2,2 0 0,0 20,3M18.8,11L17.2,12.6L18.8,14.2C19.1,14.5 19.1,15 18.8,15.3L16.3,17.8C16,18.1 15.5,18.1 15.2,17.8L13.6,16.2V11H18.8M10.4,11H5.2V16.2L6.8,17.8C7.1,18.1 7.6,18.1 7.9,17.8L10.4,15.3C10.7,15 10.7,14.5 10.4,14.2L8.8,12.6L10.4,11M5.2,10.4V5.2H10.4L8.8,6.8L10.4,8.4C10.7,8.7 10.7,9.2 10.4,9.5L7.9,12C7.6,12.3 7.1,12.3 6.8,12L5.2,10.4M18.8,5.2H13.6V10.4L15.2,12L13.6,13.6V18.8L15.2,17.2L16.8,18.8C17.1,19.1 17.6,19.1 17.9,18.8L20.4,16.3C20.7,16 20.7,15.5 20.4,15.2L18.8,13.6L20.4,12L18.8,10.4L20.4,8.8C20.7,8.5 20.7,8 20.4,7.7L17.9,5.2C17.6,4.9 17.1,4.9 16.8,5.2L15.2,6.8L13.6,5.2H18.8Z" /></svg>
-            --><span>PFPÜ</span>
+            <span>PFPÜ</span>
         </div>
         <button id="admin-login-btn">
             <svg class="admin-icon" viewBox="0 0 24 24"><path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,11.5A3.5,3.5 0 1,1 8.5,15A3.5,3.5 0 0,1 12,11.5M12,12.5A2.5,2.5 0 1,0 14.5,15A2.5,2.5 0 0,0 12,12.5M12,17.5A4.5,4.5 0 0,1 7.5,13A4.5,4.5 0 0,1 12,8.5A4.5,4.5 0 0,1 16.5,13A4.5,4.5 0 0,1 12,17.5M12,18.5A5.5,5.5 0 1,0 17.5,13A5.5,5.5 0 0,0 12,18.5Z" /></svg>
             <span>Admin</span>
         </button>
     </header>
+    
     <div id="loading-screen">
         <div class="spinner"></div>
         <p>Lade Karte & Termine...</p>
     </div>
+    
     <main>
         <section id="map-view" class="active-view">
             <div id="map"></div>
@@ -107,15 +102,13 @@
             <div class="calendar-header">
                 <button id="prev-month">&lt;</button>
                 <div class="month-title-container">
-                <h2 id="current-month-display">Monat Jahr</h2>
-                <button id="go-to-today" class="today-btn">Heute</button>
-            </div>
-    <button id="next-month">&gt;</button>
-            </div>
-            <div id="calendar-container">
+                    <h2 id="current-month-display">Monat Jahr</h2>
+                    <button id="go-to-today" class="today-btn">Heute</button>
                 </div>
-            <div id="event-list-container">
-                </div>
+                <button id="next-month">&gt;</button>
+            </div>
+            <div id="calendar-container"></div>
+            <div id="event-list-container"></div>
         </section>
 
         <section id="new-place-view">
@@ -124,42 +117,52 @@
                 <input type="text" id="new-place-name" placeholder="Name des Geschäfts / Ortes" required>
 
                  <label for="new-place-category" style="display: block; margin-top: 10px; font-size: 0.9rem; color: #555;">Kategorie wählen:</label>
-                    <select id="new-place-category" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
-                        <option value="" disabled selected>Bitte wählen...</option>
-                        <option value="Bäckerei">Bäckerei</option>
-                        <option value="Metzgerei">Metzgerei</option>
-                        <option value="Supermarkt">Supermarkt</option>
-                        <option value="Pausenplatz">Pausenplatz</option>
-                        <option value="Wirtshaus">Wirtshaus</option>
-                        <option value="Kirchweih">Kirchweih</option>
-                        <option value="Zigarettenautomat">Zigarettenautomat</option>
-                        <option value="WC">WC</option>
-                        <option value="Sonstiges">Sonstiges</option>
-                    </select>
+                <select id="new-place-category" required style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="" disabled selected>Bitte wählen...</option>
+                    <option value="Bäckerei">Bäckerei</option>
+                    <option value="Metzgerei">Metzgerei</option>
+                    <option value="Supermarkt">Supermarkt</option>
+                    <option value="Pausenplatz">Pausenplatz</option>
+                    <option value="Wirtshaus">Wirtshaus</option>
+                    <option value="WC">WC</option>
+                    <option value="Kirchweih">Kirchweih</option>
+                    <option value="Zigarettenautomat">Zigarettenautomat</option>
+                    <option value="Sonstiges">Sonstiges</option>
+                </select>
 
-            <textarea id="new-place-info" placeholder="Zusatzinformationen, Termine, Öffnungszeiten..." style="height: 80px;"></textarea>
-            <input type="url" id="new-place-website" placeholder="Website (optional, inkl. https://)" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
-            <input type="hidden" id="new-place-coords">
+                <textarea id="new-place-info" placeholder="Zusatzinformationen, Termine, Öffnungszeiten..." style="height: 80px;"></textarea>
+                <input type="url" id="new-place-website" placeholder="Website (optional, inkl. https://)" style="width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px;">
+                <input type="hidden" id="new-place-coords">
 
-            <p style="font-size: 0.9rem; color: #555; margin-bottom: 8px;">
-                <strong>Schritt 2:</strong> Nutze den GPS-Button zum Finden deiner Position und <u>klicke dann auf die Karte</u>, um den Punkt zu markieren.
-            </p>
+                <p style="font-size: 0.9rem; color: #555; margin-bottom: 8px;">
+                    <strong>Schritt 2:</strong> Nutze den GPS-Button zum Finden deiner Position und <u>klicke dann auf die Karte</u>, um den Punkt zu markieren.
+                </p>
 
-            <div class="new-map-wrapper">
-                <div id="new-place-map"></div>
-                <button type="button" id="new-place-location-btn" title="Meinen Standort nutzen">
-                    <svg viewBox="0 0 24 24"><path d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6Z" /></svg>
-                </button>
-            </div>
-            <div style="border: 1px dashed #ccc; padding: 10px; margin-bottom: 15px; border-radius: 4px;">
-                <p style="font-size: 0.85rem; font-weight: bold; margin-bottom: 5px;">Optional: Veranstaltung hinzufügen</p>
-                <input type="text" id="event-title" placeholder="Name der Veranstaltung (z.B. Schlachtschüssel)">
-                <label style="font-size: 0.75rem; display: block; margin-top: 5px;">Datum:</label>
-                <input type="date" id="event-date">
-            </div>
-            <button type="submit">Einsenden</button>
-        </form>
-    </section>
+                <div class="new-map-wrapper">
+                    <div id="new-place-map"></div>
+                    <button type="button" id="new-place-location-btn" title="Meinen Standort nutzen">
+                        <svg viewBox="0 0 24 24"><path d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6Z" /></svg>
+                    </button>
+                </div>
+                
+                <div style="border: 1px dashed #ccc; padding: 10px; margin-bottom: 15px; border-radius: 4px;">
+                    <p style="font-size: 0.85rem; font-weight: bold; margin-bottom: 5px;">Optional: Veranstaltung hinzufügen</p>
+                    <input type="text" id="event-title" placeholder="Name der Veranstaltung (z.B. Schlachtschüssel)">
+                    <div style="display: flex; gap: 10px; margin-top: 5px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.75rem; display: block;">Startdatum:</label>
+                            <input type="date" id="event-date" style="width: 100%;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 0.75rem; display: block;">Enddatum (optional):</label>
+                            <input type="date" id="event-end-date" style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit">Einsenden</button>
+            </form>
+        </section>
     </main>
 
     <footer class="nav-bar">
@@ -182,40 +185,45 @@
     </footer>
 
     <div id="admin-modal" class="modal hidden">
-    <div class="modal-content">
-        <span class="close-btn">&times;</span>
-        <h2>Admin Panel</h2>
-        
-        <p><strong>Eingereichte Orte (Vorschläge):</strong></p>
-        <div id="submitted-places-list" style="margin-bottom: 20px;">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Admin Panel</h2>
+            
+            <p><strong>Eingereichte Orte (Vorschläge):</strong></p>
+            <div id="submitted-places-list" style="margin-bottom: 20px;"></div>
+
+            <hr style="margin: 20px 0;">
+
+            <h3 style="margin-top: 0;">Neuen Termin für bestehenden Ort anlegen</h3>
+            <div style="background: #f1f8e9; padding: 15px; border: 1px solid #c5e1a5; border-radius: 5px; margin-bottom: 20px;">
+                <label style="font-size: 0.9rem; font-weight: bold;">Zugehöriger Ort:</label><br>
+                <select id="new-event-place-id" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;"></select><br>
+
+                <label style="font-size: 0.9rem; font-weight: bold;">Titel des Termins:</label><br>
+                <input type="text" id="new-event-title" placeholder="z.B. Schlachtschüssel" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;"><br>
+
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.9rem; font-weight: bold;">Startdatum:</label><br>
+                        <input type="date" id="new-event-date" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.9rem; font-weight: bold;">Enddatum (optional):</label><br>
+                        <input type="date" id="new-event-end-date" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;">
+                    </div>
+                </div>
+
+                <button id="btn-save-new-event" style="padding: 10px 15px; background: #4a6741; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold;">Termin speichern</button>
             </div>
 
-        <hr style="margin: 20px 0;">
+            <hr style="margin: 20px 0;">
 
-        <h3 style="margin-top: 0;">Neuen Termin für bestehenden Ort anlegen</h3>
-        <div style="background: #f1f8e9; padding: 15px; border: 1px solid #c5e1a5; border-radius: 5px; margin-bottom: 20px;">
-            <label style="font-size: 0.9rem; font-weight: bold;">Zugehöriger Ort:</label><br>
-            <select id="new-event-place-id" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;"></select><br>
-
-            <label style="font-size: 0.9rem; font-weight: bold;">Titel des Termins:</label><br>
-            <input type="text" id="new-event-title" placeholder="z.B. Schlachtschüssel" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;"><br>
-
-            <label style="font-size: 0.9rem; font-weight: bold;">Datum:</label><br>
-            <input type="date" id="new-event-date" style="width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 15px; border-radius: 4px; border: 1px solid #ccc;"><br>
-
-            <button id="btn-save-new-event" style="padding: 10px 15px; background: #4a6741; color: white; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold;">Termin speichern</button>
+            <h3>Live-Daten verwalten (Orte löschen/bearbeiten)</h3>
+            <div id="admin-live-management"></div>
         </div>
-
-        <hr style="margin: 20px 0;">
-
-        <h3>Live-Daten verwalten (Orte löschen/bearbeiten)</h3>
-        <div id="admin-live-management">
-            </div>
     </div>
-</div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    
     <script type="module" src="app.js"></script>
 </body>
 </html>
