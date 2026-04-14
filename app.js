@@ -6,15 +6,14 @@ let eventsData = []; // Hier landen alle Veranstaltungen aus der Datenbank
 // App-Status
 let appState = {
     activeView: 'map-view',
-    activeFilters: ['Bäckerei', 'Metzgerei','Supermarkt','Pausenplatz','Wirtshaus','WC'],
+    activeFilters: ['Bäckerei', 'Metzgerei', 'Supermarkt', 'Pausenplatz', 'Wirtshaus', 'WC'],
     userLocation: null,
     selectedCalendarDay: new Date(),
     isAdmin: false
 };
 
 /* === Globale Karten-Variablen === */
-// Ganz oben in der app.js
-let map; // Sicherstellen, dass diese Variable nicht innerhalb einer Funktion mit 'const' neu definiert wird
+let map; 
 let newPlaceMap; 
 let newPlaceMarker = null; 
 let markerLayer = L.layerGroup();
@@ -34,16 +33,10 @@ const submittedPlacesList = document.getElementById('submitted-places-list');
 
 /* === INITIALISIERUNG === */
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Karte initialisieren
     initMap();
-    // 2. Navigation initialisieren
     initNavigation();
-    // 3. PWA-Service-Worker registrieren
     registerServiceWorker();
-    // 4. Admin-Simulation initialisieren
     initAdminSimulation();
-    
-    // 5. START: Firebase Daten laden
     loadDataFromFirebase();
 });
 
@@ -54,72 +47,47 @@ function loadDataFromFirebase() {
     const { onSnapshot, collection } = window.firebaseFirestore;
     const loadingScreen = document.getElementById('loading-screen');
     
-    // Wir zählen, wie viele Collections wir laden (Places + Events)
     let collectionsLoaded = 0;
     const totalToLoad = 2;
 
     const checkLoadingStatus = () => {
         collectionsLoaded++;
-        // Wenn beide (Places & Events) zum ersten Mal da sind, Spinner ausblenden
         if (collectionsLoaded >= totalToLoad) {
             setTimeout(() => {
                 loadingScreen.classList.add('hidden-loader');
-            }, 500); // Eine halbe Sekunde Puffer für ein ruhigeres Bild
+            }, 500); 
         }
     };
 
-    // A. Orte laden
     onSnapshot(collection(window.db, "places"), (snapshot) => {
         places = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         updateMapMarkers();
         if (appState.activeView === 'list-view') renderList();
-        
-        // Status-Check nur beim allerersten Laden
         if (collectionsLoaded < 1) checkLoadingStatus();
     });
 
-    // B. NEU: Veranstaltungen laden
     onSnapshot(collection(window.db, "events"), (snapshot) => {
         eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         updateMapMarkers();
         if (appState.activeView === 'calendar-view') renderCalendar();
-        
-        // Status-Check nur beim allerersten Laden
         if (collectionsLoaded < 2) checkLoadingStatus();
     });
 
-    // C. Vorschläge für Admin (muss nicht auf den Spinner warten)
     onSnapshot(collection(window.db, "suggestions"), (snapshot) => {
         suggestedPlaces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         if (appState.isAdmin) renderAdminPlaceList();
     });
 }
-/* === 1. KARTEN LOGIK === */
-/*const createIcon = (char) => {
-    return L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div style="background-color: var(--primary-color); color: #fff; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.5);">${char}</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 30],
-        popupAnchor: [0, -30]
-    });
-};
 
-const categoryIcons = {
-    Metzgerei: createIcon('M'), Wirtshaus: createIcon('W'), Supermarkt: createIcon('S'),
-    Bäckerei: createIcon('B'), Pausenplatz: createIcon('P'), Zigarettenautomat: createIcon('Z'),
-    Kirchweih: createIcon('K'), WC: createIcon('WC')
-};*/
-// Wir definieren eine Basis-Icon-Klasse für einheitliche Größe
+/* === 1. KARTEN LOGIK === */
 const BaseMapIcon = L.Icon.extend({
     options: {
-        iconSize: [35, 35], // Die Größe der Icons (Breite, Höhe) in Pixel
-        iconAnchor: [17, 35], // Der Ankerpunkt, der auf der Karte fixiert wird (Mitte-Unten)
-        popupAnchor: [0, -35] // Wo das Popup relativ zum Ankerpunkt erscheint
+        iconSize: [35, 35], 
+        iconAnchor: [17, 35], 
+        popupAnchor: [0, -35] 
     }
 });
 
-// Wir erstellen Instanzen für jede Kategorie
 const categoryIcons = {
     Bäckerei: new BaseMapIcon({ iconUrl: 'assets/icons/icon_baeckerei.png' }),
     Metzgerei: new BaseMapIcon({ iconUrl: 'assets/icons/icon_metzgerei.png' }),
@@ -131,43 +99,33 @@ const categoryIcons = {
     Zigarettenautomat: new BaseMapIcon({ iconUrl: 'assets/icons/icon_zigarettenautomat.png' }),
     Sonstiges: new BaseMapIcon({ iconUrl: 'assets/icons/icon_sonstiges.png' })
 };
-function initMap() {
-    // 1. Die verschiedenen Karten-Hintergründe (TileLayers) definieren
 
-    // A: Deine bisherige Straßenkarte (Füge hier deine aktuelle basemap.de URL ein!)
+function initMap() {
     const standardMap = L.tileLayer('https://sgx.geodatenzentrum.de/wmts_basemapde/tile/1.0.0/de_basemapde_web_raster_farbe/default/GLOBAL_WEBMERCATOR/{z}/{y}/{x}.png', {
         maxZoom: 19
     });
 
-    // B: Das neue Luftbild (Satellit von Esri)
     const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19
     });
 
-    // 2. Karte initialisieren
-    // WICHTIG: Wir übergeben hier 'layers: [standardMap]', damit die Karte weiß, womit sie starten soll.
     map = L.map('map', {
-        zoomControl: false,        // Standard-Zoom aus
-        attributionControl: false, // Standard-Leaflet-Text aus
-        layers: [standardMap]      // Startet mit der Straßenkarte
+        zoomControl: false,        
+        attributionControl: false, 
+        layers: [standardMap]      
     }).setView([49.301, 10.572], 13);
 
-    // 3. Deine Quellenangabe (erweitert um Esri für das Luftbild)
-    L.control.attribution({ 
-        position: 'bottomleft' 
-    }).addAttribution('&copy; <a href="https://basemap.de" target="_blank">GeoBasis-DE / BKG</a> | Luftbild: &copy; Esri')
+    L.control.attribution({ position: 'bottomleft' })
+      .addAttribution('&copy; <a href="https://basemap.de" target="_blank">GeoBasis-DE / BKG</a> | Luftbild: &copy; Esri')
       .addTo(map);
 
-    // 4. Den Umschalt-Button (Layer Control) erstellen
     const baseMaps = {
         "Straßenkarte": standardMap,
         "Luftbild": satelliteMap
     };
-// Fügt das Auswahlmenü oben rechts (topright) zur Karte hinzu
+
     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
-    L.control.zoom({
-        position: 'topright'
-    }).addTo(map);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
     markerLayer.addTo(map);
     updateMapMarkers();
@@ -179,13 +137,9 @@ function updateMapMarkers() {
     markerLayer.clearLayers();
     
     places.forEach(place => {
-        // Prüfen, ob die Kategorie aktiv gefiltert ist
         if (appState.activeFilters.includes(place.category)) {
             
-            // 1. Alle Events finden, die zu diesem speziellen Ort gehören
             const placeEvents = eventsData.filter(e => e.placeId === place.id);
-
-            // 2. Event-Texte generieren (falls vorhanden)
             let eventHtml = "";
             if (placeEvents.length > 0) {
                 eventHtml = `<div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px;">
@@ -198,15 +152,17 @@ function updateMapMarkers() {
                 eventHtml += `</div>`;
             }
 
-            // 3. Popup-Inhalt zusammenbauen
+            // Sichere Website-URL (stellt sicher, dass http:// davor steht, sonst klappt der Link nicht)
+            let safeWebsite = place.website ? (place.website.startsWith('http') ? place.website : 'https://' + place.website) : '';
+
             const popupContent = `
                 <div class="popup-content">
                     <h3 style="margin: 0 0 5px 0;">${place.name}</h3>
                     <p style="margin: 0; font-size: 0.9rem;"><strong>Kategorie:</strong> ${place.category}</p>
                     <p style="margin: 5px 0; font-size: 0.85rem; color: #666;">${place.info || ''}</p>
                     
-                    ${place.website ? `
-                        <a href="${place.website}" target="_blank" rel="noopener" 
+                    ${safeWebsite ? `
+                        <a href="${safeWebsite}" target="_blank" rel="noopener" 
                         style="display: block; margin-top: 10px; padding: 8px; background: #4a6741; color: white; text-align: center; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.8rem;">
                         🌐 Website besuchen
                         </a>` : ''}
@@ -214,12 +170,11 @@ function updateMapMarkers() {
                     ${eventHtml}
                 </div>
             `;
-            // 4. Icon bestimmen (Fallback auf Sonstiges, falls Kategorie unbekannt)
+            
             const iconToUse = categoryIcons[place.category] || categoryIcons["Sonstiges"];
 
-            // 5. Marker erstellen und zur Karte hinzufügen
             L.marker(place.coords, { icon: iconToUse })
-                .bindPopup(popupContent) // Korrigiert: hieß vorher popupInhalt
+                .bindPopup(popupContent)
                 .addTo(markerLayer);
         }
     });
@@ -231,14 +186,12 @@ function initMapInteractions() {
     const filterCheckboxes = filterContent.querySelectorAll('input[type="checkbox"]');
     const filterActiveCountSpan = document.getElementById('filter-active-count');
     
-    // Funktion zum Aktualisieren des Zählers
     const updateFilterCounter = () => {
-        const total = filterCheckboxes.length; // Das sind 9
+        const total = filterCheckboxes.length; 
         const active = appState.activeFilters.length;
         filterActiveCountSpan.textContent = `${active}/${total} aktiv`;
     };
 
-    // Einmal beim Laden ausführen, damit "6/9" sofort da steht
     updateFilterCounter();
 
     filterBtn.addEventListener('click', (e) => {
@@ -256,10 +209,7 @@ function initMapInteractions() {
             } else {
                 appState.activeFilters = appState.activeFilters.filter(f => f !== category);
             }
-            
-            // Zähler aktualisieren
             updateFilterCounter();
-            // Marker auf der Karte neu zeichnen
             updateMapMarkers();
         });
     });
@@ -366,7 +316,6 @@ function renderList() {
 listSearchInput.addEventListener('input', renderList);
 listCategoryFilter.addEventListener('change', renderList);
 
-
 /* === 4. KALENDERANSICHT-LOGIK === */
 const calendarContainer = document.getElementById('calendar-container');
 const eventListContainer = document.getElementById('event-list-container');
@@ -452,7 +401,6 @@ function renderEventsForDay(dateStr) {
         eventListContainer.innerHTML += '<p>Keine Termine gefunden.</p>';
     } else {
         eventsAtDay.forEach(e => {
-            // 1. Das HTML-Element für den Termin erstellen
             const eventItem = document.createElement('div');
             eventItem.className = 'event-item';
             eventItem.style.cssText = "background: #fff; padding: 12px; margin-bottom: 8px; border-left: 4px solid var(--primary-color); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;";
@@ -462,20 +410,12 @@ function renderEventsForDay(dateStr) {
                 <small style="color: #555;">📍 Ort: <strong>${e.placeName}</strong> (Klick zum Zeigen)</small>
             `;
 
-            // 2. Den Klick-Event hinzufügen
             eventItem.addEventListener('click', () => {
-                // Den zugehörigen Ort in unseren Daten finden
                 const targetPlace = places.find(p => p.id === e.placeId);
-
                 if (targetPlace) {
-                    // Zur Kartenansicht wechseln (simuliert Klick auf Nav-Button)
                     const navMapItem = document.querySelector('.nav-item[data-view="map-view"]');
                     navMapItem.click(); 
-
-                    // Zur Position fliegen
                     map.flyTo(targetPlace.coords, 18);
-
-                    // Das Popup des Markers automatisch öffnen
                     markerLayer.eachLayer(layer => {
                         if (layer instanceof L.Marker && 
                             layer.getLatLng().lat === targetPlace.coords[0] && 
@@ -487,7 +427,6 @@ function renderEventsForDay(dateStr) {
                     alert("Der zugehörige Ort wurde leider nicht gefunden.");
                 }
             });
-
             eventListContainer.appendChild(eventItem);
         });
     }
@@ -502,7 +441,6 @@ document.getElementById('go-to-today').addEventListener('click', () => {
     const fullDateStr = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getDate().toString().padStart(2, '0')}`;
     renderEventsForDay(fullDateStr);
 });
-
 
 /* === 5. "NEU"-ANSICHT (Vorschläge an Firebase senden) === */
 function initNewPlaceMap() {
@@ -551,21 +489,18 @@ if (newPlaceForm) {
             return alert("Verbindung zur Datenbank fehlt gerade.");
         }
 
-        const coordsRaw = newPlaceCoordsInput.value; // Format: "lat, lng"
+        const coordsRaw = newPlaceCoordsInput.value; 
         if (!coordsRaw) return alert("Bitte markiere zuerst den Ort auf der Karte!");
 
         try {
-            // Koordinaten sicher umwandeln
             const coordsArray = coordsRaw.split(',').map(c => parseFloat(c.trim()));
 
-            // Alle Daten in EINEM Objekt sammeln
             const suggestionData = {
                 name: document.getElementById('new-place-name').value,
                 category: document.getElementById('new-place-category').value,
                 info: document.getElementById('new-place-info').value,
                 website: document.getElementById('new-place-website').value,
                 coords: coordsArray,
-                // Event-Daten (falls vorhanden)
                 eventTitle: document.getElementById('event-title')?.value || null,
                 eventDate: document.getElementById('event-date')?.value || null,
                 submittedAt: new Date()
@@ -576,14 +511,12 @@ if (newPlaceForm) {
             
             alert("Vielen Dank! Der Ort wurde zur Überprüfung eingesendet.");
             
-            // Formular zurücksetzen
             this.reset();
             newPlaceCoordsInput.value = '';
             if (newPlaceMarker && newPlaceMap) {
                 newPlaceMap.removeLayer(newPlaceMarker);
                 newPlaceMarker = null;
             }
-            // Zurück zur Karte springen
             document.querySelector('.nav-item[data-view="map-view"]').click();
 
         } catch (error) {
@@ -592,7 +525,6 @@ if (newPlaceForm) {
         }
     });
 }
-
 
 /* === 6. ADMIN-LOGIK & FIREBASE === */
 function initAdminSimulation() {
@@ -608,7 +540,7 @@ function initAdminSimulation() {
         }
 
         const email = prompt("Admin E-Mail:");
-        if (!email) return; // Abbruch
+        if (!email) return; 
         const password = prompt("Passwort:");
         if (!password) return;
 
@@ -632,11 +564,7 @@ function initAdminSimulation() {
 
 function openAdminModal() {
     adminModal.classList.remove('hidden');
-    
-    // 1. Zeige die neuen Vorschläge
     renderAdminPlaceList(); 
-    
-    // 2. Zeige die bereits existierenden Daten zum Verwalten (NEU!)
     renderAdminManagementList(); 
 }
 
@@ -644,7 +572,6 @@ function closeAdminModal() {
     adminModal.classList.add('hidden');
 }
 
-// Hilfsfunktion: Lädt die Vorschläge aus Firebase und zeigt sie im Modal an
 async function renderAdminPlaceList() {
     const container = document.getElementById('submitted-places-list');
     container.innerHTML = '<p style="padding: 10px;">Lade Vorschläge...</p>';
@@ -689,13 +616,12 @@ async function renderAdminPlaceList() {
                     <button onclick="approvePlace('${id}')" style="background-color: #4CAF50; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 2; font-weight: bold;">✔ Speichern & Freigeben</button>
                     <button onclick="deleteSuggestion('${id}')" style="background-color: #f44336; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; flex: 1;">✖ Löschen</button>
                 </div>
-                // Im HTML-String innerhalb von renderAdminPlaceList hinzufügen:
+                
                 <div style="background: #e3f2fd; padding: 8px; margin-top: 10px; border-radius: 4px;">
                     <strong>Event-Vorschlag:</strong><br>
                     <input type="text" id="edit-event-title-${id}" value="${data.eventTitle || ''}" placeholder="Kein Event" style="width: 70%;">
                     <input type="date" id="edit-event-date-${id}" value="${data.eventDate || ''}">
                 </div>
-
             `;
             container.appendChild(item);
         });
@@ -705,12 +631,10 @@ async function renderAdminPlaceList() {
     }
 }
 
-// Diese Funktion zeigt alle AKTIVEN Orte und Events im Admin-Bereich an
 function renderAdminManagementList() {
     const container = document.getElementById('admin-live-management');
     if (!container) return;
     
-    // Wir fügen hier einen leeren Container "admin-edit-form" für das Bearbeitungsfenster hinzu
     container.innerHTML = `
         <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2;">
             <p style="font-weight: bold; margin-bottom: 10px; color: #e65100;">Aktive Orte & Events verwalten</p>
@@ -721,7 +645,6 @@ function renderAdminManagementList() {
     
     const list = document.getElementById('live-items-list');
 
-    // 1. Alle echten Orte (places) auflisten
     places.forEach(place => {
         const div = document.createElement('div');
         div.style = "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #ccc; padding: 10px;";
@@ -735,7 +658,6 @@ function renderAdminManagementList() {
         list.appendChild(div);
     });
 
-    // 2. Alle echten Events (eventsData) auflisten
     eventsData.forEach(event => {
         const div = document.createElement('div');
         div.style = "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #ccc; padding: 10px; background: #fffde7;";
@@ -749,9 +671,8 @@ function renderAdminManagementList() {
         list.appendChild(div);
     });
 }
-// NEU: Funktion um die Karte im Hintergrund zu bewegen
+
 window.showOnMap = function(lat, lng) {
-    // 1. Prüfen, ob die Karte existiert
     const currentMap = window.map || map; 
 
     if (!currentMap) {
@@ -760,7 +681,6 @@ window.showOnMap = function(lat, lng) {
         return;
     }
 
-    // 2. Sicherstellen, dass lat/lng Zahlen sind (Firebase speichert sie manchmal als Strings)
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lng);
 
@@ -769,10 +689,8 @@ window.showOnMap = function(lat, lng) {
         return;
     }
 
-    // 3. Zum Punkt springen
     currentMap.setView([latitude, longitude], 18);
 
-    // 4. Einen temporären auffälligen Kreis zeichnen, der nach 3 Sekunden wieder verschwindet
     const highlight = L.circle([latitude, longitude], {
         color: 'red',
         fillColor: '#f03',
@@ -784,23 +702,16 @@ window.showOnMap = function(lat, lng) {
         currentMap.removeLayer(highlight);
     }, 3000);
 
-    // 5. Optional: Modal verkleinern oder nach hinten schieben, 
-    // damit man die Karte sehen kann (falls das Modal alles verdeckt)
-    // document.getElementById('admin-modal').style.opacity = "0.5";
-    // setTimeout(() => { document.getElementById('admin-modal').style.opacity = "1"; }, 2000);
-    // Ergänzung für showOnMap:
-    const adminModal = document.getElementById('admin-modal'); // ID eventuell anpassen
+    const adminModal = document.getElementById('admin-modal'); 
     adminModal.classList.add('hidden');
     setTimeout(() => {
         adminModal.classList.remove('hidden');
-    }, 2500); // Zeigt die Karte für 2,5 Sekunden
+    }, 2500); 
 };
 
-/* === 6. ADMIN-LOGIK (Die finale Version) === */
-
-// Funktion: Vorschlag bearbeiten, freigeben und optionales Event speichern
 window.approvePlace = async function(id) {
     const updatedName = document.getElementById(`edit-name-${id}`).value;
+    const updatedWebsite = document.getElementById(`edit-website-${id}`).value;
     const updatedInfo = document.getElementById(`edit-info-${id}`).value;
     const updatedEventTitle = document.getElementById(`edit-event-title-${id}`)?.value || "";
     const updatedEventDate = document.getElementById(`edit-event-date-${id}`)?.value || "";
@@ -811,23 +722,21 @@ window.approvePlace = async function(id) {
         const { doc, collection, addDoc, deleteDoc, getDocs } = window.firebaseFirestore;
         const suggestionRef = doc(window.db, "suggestions", id);
         
-        // Originaldaten holen (wegen Coords/Kategorie)
         const allDocs = await getDocs(collection(window.db, "suggestions"));
         const originalDoc = allDocs.docs.find(d => d.id === id);
 
         if (originalDoc) {
             const data = originalDoc.data();
             
-            // 1. Ort in "places" speichern
             const newPlaceDoc = await addDoc(collection(window.db, "places"), {
                 name: updatedName,
                 info: updatedInfo,
+                website: updatedWebsite,
                 category: data.category,
                 coords: data.coords,
                 approvedAt: new Date()
             });
 
-            // 2. Event in "events" speichern (falls ausgefüllt)
             if (updatedEventTitle.trim() !== "" && updatedEventDate !== "") {
                 await addDoc(collection(window.db, "events"), {
                     title: updatedEventTitle,
@@ -838,7 +747,6 @@ window.approvePlace = async function(id) {
                 });
             }
 
-            // 3. Vorschlag löschen
             await deleteDoc(suggestionRef);
 
             alert("Erfolgreich freigegeben!");
@@ -860,33 +768,16 @@ window.deleteSuggestion = async function(id) {
     }
 };
 
-/* === 7. PWA-SERVICE-WORKER === */
-function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(registration => {
-                    console.log('ServiceWorker registriert:', registration);
-                })
-                .catch(error => {
-                    console.error('ServiceWorker Registrierung fehlgeschlagen:', error);
-                });
-        });
-    }
-}
-// Hilfsfunktion: Löscht einen Ort permanent aus der Datenbank
 window.deleteLivePlace = async function(id) {
     if (!confirm("Diesen Ort wirklich von der Karte löschen? Das kann nicht rückgängig gemacht werden!")) return;
     try {
         await window.firebaseFirestore.deleteDoc(window.firebaseFirestore.doc(window.db, "places", id));
         alert("Ort gelöscht.");
-        // Die Liste aktualisiert sich durch den onSnapshot automatisch!
     } catch (error) {
         alert("Fehler beim Löschen: " + error.message);
     }
 };
 
-// Hilfsfunktion: Löscht ein Event permanent
 window.deleteLiveEvent = async function(id) {
     if (!confirm("Diese Veranstaltung wirklich löschen?")) return;
     try {
@@ -897,7 +788,6 @@ window.deleteLiveEvent = async function(id) {
     }
 };
 
-// --- BEARBEITEN VON ORTEN ---
 window.editLivePlace = function(id) {
     const place = places.find(p => p.id === id);
     if (!place) return;
@@ -905,11 +795,9 @@ window.editLivePlace = function(id) {
     const editForm = document.getElementById('admin-edit-form');
     const list = document.getElementById('live-items-list');
 
-    // Liste ausblenden, Formular einblenden
     list.style.display = 'none';
     editForm.style.display = 'block';
 
-    // Formular mit den aktuellen Daten befüllen
     editForm.innerHTML = `
         <h4 style="margin-top: 0; color: var(--primary-color);">Ort bearbeiten</h4>
         <label style="font-size: 0.8rem;">Name:</label><br>
@@ -918,6 +806,9 @@ window.editLivePlace = function(id) {
         <label style="font-size: 0.8rem;">Kategorie:</label><br>
         <input type="text" id="edit-place-category" value="${place.category}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;"><br>
         
+        <label style="font-size: 0.8rem;">Website:</label><br>
+        <input type="url" id="edit-place-website" value="${place.website || ''}" style="width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box;"><br>
+
         <label style="font-size: 0.8rem;">Beschreibung:</label><br>
         <textarea id="edit-place-info" style="width: 100%; margin-bottom: 10px; padding: 8px; height: 80px; box-sizing: border-box;">${place.info}</textarea><br>
         
@@ -929,23 +820,23 @@ window.editLivePlace = function(id) {
 window.savePlaceEdit = async function(id) {
     const newName = document.getElementById('edit-place-name').value;
     const newCategory = document.getElementById('edit-place-category').value;
+    const newWebsite = document.getElementById('edit-place-website').value;
     const newInfo = document.getElementById('edit-place-info').value;
 
     try {
-        // Firebase Befehl zum Aktualisieren (updateDoc statt setDoc)
         await window.firebaseFirestore.updateDoc(window.firebaseFirestore.doc(window.db, "places", id), {
             name: newName,
             category: newCategory,
+            website: newWebsite,
             info: newInfo
         });
         alert("Ort erfolgreich aktualisiert!");
-        cancelEdit(); // Schließt das Formular
+        cancelEdit(); 
     } catch (error) {
         alert("Fehler beim Speichern: " + error.message);
     }
 };
 
-// --- BEARBEITEN VON EVENTS ---
 window.editLiveEvent = function(id) {
     const event = eventsData.find(e => e.id === id);
     if (!event) return;
@@ -985,37 +876,28 @@ window.saveEventEdit = async function(id) {
     }
 };
 
-// --- HILFSFUNKTION ---
 window.cancelEdit = function() {
     document.getElementById('admin-edit-form').style.display = 'none';
     document.getElementById('live-items-list').style.display = 'block';
 };
 
-/* =========================================
-   NEU: TERMINE IM ADMIN-BEREICH VERWALTEN
-   ========================================= */
-
-// 1. Dropdown mit Orten füllen, wenn der Admin-Button geklickt wird
+/* === TERMINE IM ADMIN-BEREICH VERWALTEN === */
 document.getElementById('admin-login-btn').addEventListener('click', () => {
     const dropdown = document.getElementById('new-event-place-id');
     if (!dropdown) return;
     
-    // Altes leeren und Standard-Option setzen
     dropdown.innerHTML = '<option value="">-- Bitte Ort wählen --</option>';
     
-    // Alle freigegebenen Orte alphabetisch sortieren (optional, aber übersichtlicher)
     const sortedPlaces = [...places].sort((a, b) => a.name.localeCompare(b.name));
 
-    // Für jeden Ort eine Auswahlmöglichkeit erstellen
     sortedPlaces.forEach(place => {
         const option = document.createElement('option');
-        option.value = place.id; // Die Firebase-ID wird versteckt gespeichert
-        option.textContent = place.name; // Der Name wird angezeigt
+        option.value = place.id; 
+        option.textContent = place.name; 
         dropdown.appendChild(option);
     });
 });
 
-// 2. Klick auf "Termin speichern" abfangen und an Firebase senden
 document.addEventListener('DOMContentLoaded', () => {
     const saveEventBtn = document.getElementById('btn-save-new-event');
     
@@ -1025,28 +907,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = document.getElementById('new-event-title').value;
             const date = document.getElementById('new-event-date').value;
 
-            // Prüfen, ob der Admin alles ausgefüllt hat
             if (!placeId || !title || !date) {
                 alert("Bitte wähle einen Ort aus und fülle Titel sowie Datum aus!");
                 return;
             }
 
-            // Den Namen des Ortes für den Kalender heraussuchen
             const selectedPlace = places.find(p => p.id === placeId);
             const placeName = selectedPlace ? selectedPlace.name : "Unbekannter Ort";
 
             try {
-                // In Firebase speichern
                 await window.firebaseFirestore.addDoc(window.firebaseFirestore.collection(window.db, "events"), {
                     placeId: placeId,
-                    placeName: placeName, // Wichtig für die Anzeige in der Kalender-Liste
+                    placeName: placeName, 
                     title: title,
                     date: date
                 });
                 
                 alert("Termin erfolgreich gespeichert!");
                 
-                // Formular wieder leeren, falls man direkt noch einen Termin eintragen will
                 document.getElementById('new-event-title').value = '';
                 document.getElementById('new-event-date').value = '';
                 
@@ -1057,3 +935,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+/* === 7. PWA-SERVICE-WORKER === */
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker registriert:', registration);
+                })
+                .catch(error => {
+                    console.error('ServiceWorker Registrierung fehlgeschlagen:', error);
+                });
+        });
+    }
+}
